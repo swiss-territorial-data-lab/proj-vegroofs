@@ -87,39 +87,33 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['calculate_raster.py']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
 
     logger.info('Defining constants...')
 
     WORKING_DIR=cfg['working_directory']
 
-    INPUTS=cfg['inputs']
-    ORTHO=INPUTS['ortho_directory']
-    NDVI=cfg['ndvi_output_directory']
-    LUM=cfg['lum_output_directory']
-
-    TILE_DELIMITATION=INPUTS['tile_delimitation']
+    ORTHO_DIR=cfg['ortho_directory']
+    NDVI_DIR=cfg['ndvi_directory']
+    LUM_DIR=cfg['lum_directory']
 
     os.chdir(WORKING_DIR)
 
-    _=fct_misc.ensure_dir_exists(NDVI)
-    _=fct_misc.ensure_dir_exists(LUM)
+    _=fct_misc.ensure_dir_exists(NDVI_DIR)
+    _=fct_misc.ensure_dir_exists(LUM_DIR)
 
     logger.info('Reading files...')
     
-    tile_list_ortho=glob(os.path.join(ORTHO, '*.tif'))
-
-    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION)
-    aoi_tiles=gpd.read_file(TILE_DELIMITATION)
+    tile_list_ortho=glob(os.path.join(ORTHO_DIR, '*.tif'))
 
     tile_list=[]
     tile_list.extend(tile_list_ortho)
 
     for tile in tqdm(tile_list, 'Processing tiles'):
         tile = tile.replace("\\","/") #handle windows path
-        ndvi_tile_path=os.path.join(NDVI, tile.split('/')[-1].replace('.tif', '_NDVI.tif'))
+        ndvi_tile_path=os.path.join(NDVI_DIR, tile.split('/')[-1].replace('.tif', '_NDVI.tif'))
         _ = calculate_ndvi(tile, path=ndvi_tile_path)
-        lum_tile_path=os.path.join(LUM, tile.split('/')[-1].replace('.tif', '_lum.tif'))
+        lum_tile_path=os.path.join(LUM_DIR, tile.split('/')[-1].replace('.tif', '_lum.tif'))
         _ = calculate_lum(tile, path=lum_tile_path)
 
-    logger.success(f'The files were written in the folder {NDVI} and {LUM}.')
+    logger.success(f'The files were written in the folder {NDVI_DIR} and {LUM_DIR}.')

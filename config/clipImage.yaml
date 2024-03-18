@@ -1,8 +1,8 @@
 clip_image:
   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
   inputs:
-    ortho_directory: 01_initial/images/
+    ortho_directory: 01_initial/images/tiles
     aoi: 01_initial/aoi/STDL_GE_AOI.shp
-    tile_delimitation: 02_intermediate/aoi/
+    tile_delimitation: 02_intermediate/images/extent
     epsg: 'epsg:2056'
-  output_directory: 02_intermediate/images/
+  output_directory: 02_intermediate/images/tiles

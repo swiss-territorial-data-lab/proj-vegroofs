@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     logger.info('Starting...')
 
-    logger.info(f"Using config.yaml as config file.")
+    logger.info('Parsing the config file...')
 
     parser = argparse.ArgumentParser(
         description="The script detects the greenery on roofs")
@@ -33,31 +33,29 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['roof_stats.py']
-
-    # with open('config/logReg.yml') as fp:
-    #         cfg = yaml.load(fp, Loader=yaml.FullLoader)['roof_stats.py']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
 
     logger.info('Defining constants...')
 
     WORKING_DIR=cfg['working_directory']
-    INPUTS=cfg['inputs']
 
-    ORTHO_DIR=INPUTS['ortho_directory']
-    NDVI_DIR=INPUTS['ndvi_directory']
-    LUM_DIR=INPUTS['lum_directory']
-    OUTPUT_DIR=cfg['output_directory']
+    ORTHO_DIR=cfg['ortho_directory']
+    NDVI_DIR=cfg['ndvi_directory']
+    LUM_DIR=cfg['lum_directory']
 
-    TILE_DELIMITATION=INPUTS['tile_delimitation']
+    TILE_DELIMITATION=cfg['tile_delimitation']
 
-    ROOFS_POLYGONS=INPUTS['roofs_file']
-    ROOFS_LAYER=INPUTS['roofs_layer']
+    ROOFS_POLYGONS=cfg['roofs_gt']
+    ROOFS_LAYER=cfg['roofs_layer']
+
+    EPSG=cfg['epsg']
 
     os.chdir(WORKING_DIR)
 
 
     logger.info('Stock path to images and corresponding NDVI and luminosity rasters...')
 
+    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
     tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR)
@@ -116,14 +114,14 @@ if __name__ == "__main__":
     cols=['min', 'max', 'median', 'mean', 'std']
     rounded_stats[cols]=rounded_stats[cols].round(3)
 
-    filepath=os.path.join('','roof_stats.csv')
+    filepath=os.path.join(WORKING_DIR,'roof_stats.csv')
     rounded_stats.to_csv(filepath)
     del rounded_stats, cols, filepath
 
 
     logger.info('Printing overall min, median and max of NDVI and luminosity for the GT green roofs...')
 
-    if not os.path.isfile('threshold_.csv'):
+    if not os.path.isfile('roof_stats_summary.csv'):
         max_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['max'])
         median_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['median'])
         min_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['min'])
@@ -132,12 +130,11 @@ if __name__ == "__main__":
         median_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['band']=='lum')]['median'])
         min_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['band']=='lum')]['min'])
 
-        with open('threshold.csv', 'w', newline='') as file:
+        with open('roof_stats_summary.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            row = ['class','ndvi_min','ndvi_median','ndvi_max','lum_min','lum_mean','lum_max']
-            writer.writerow(row)
+            title= ['class','ndvi_min','ndvi_median','ndvi_max','lum_min','lum_mean','lum_max']
             row = ['tot', min_cls, median_cls, max_cls, min_cls_lum, median_cls_lum, max_cls_lum]
-            writer.writerow(row)
+            writer.writerows([title, row])
 
     for cls in list(['i', 'l','e','s','t']):
         if sum(roofs_stats['class']==cls)>0:
@@ -151,6 +148,6 @@ if __name__ == "__main__":
 
 
             row = [cls, min_cls, median_cls, max_cls, min_cls_lum, median_cls_lum, max_cls_lum]
-            with open('threshold.csv', 'a', newline='') as file:
+            with open('roof_stats_summary.csv', 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(row)

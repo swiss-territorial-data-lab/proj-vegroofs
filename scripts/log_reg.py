@@ -27,10 +27,8 @@ if __name__ == "__main__":
 
     logger.info('Starting...')
 
-    logger.info(f"Using config.yaml as config file.")
-    # with open('config/logReg.yml') as fp:
-    #         cfg = yaml.load(fp, Loader=yaml.FullLoader)['log_reg.py']
-    
+    logger.info('Parsing the config file...')
+
     parser = argparse.ArgumentParser(
         description="The script trains a logistic regression on potential green roofs")
     parser.add_argument('-cfg', '--config_file', type=str, 
@@ -40,40 +38,41 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['log_reg.py']
-
-
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
 
 
     logger.info('Defining constants...')
 
     WORKING_DIR=cfg['working_directory']
 
-    INPUTS=cfg['inputs']
-    ROOFS_LR=INPUTS['roofs_file']
-    ROOFS_LAYER=INPUTS['roofs_layer']
+    ROOFS_LR=cfg['roofs_lr']
+    ROOFS_LAYER=cfg['roofs_layer']
 
-    OUTPUT_DIR=cfg['output_directory']
+    OUTPUT_DIR=cfg['lr_directory']
 
+    TH_NDVI=cfg['th_ndvi']
+    TH_LUM=cfg['th_lum']
 
     os.chdir(WORKING_DIR)
 
+
     logger.info('Loading roofs for logistic regression...')
-    roofs_lr=gpd.read_file(ROOFS_LR)
+    roofs_lr=gpd.read_file(ROOFS_LR) #saved in hydra file architecture
+    #roofs_lr['veg_new'].isnull().values.any()
+    roofs_lr['veg_new'].fillna(0, inplace = True)
 
     logger.info('Partitioning of the potential green roofs in train and test dataset...')
     lg_train, lg_test = train_test_split(roofs_lr, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs_lr['veg_new'])
-
 
     logger.info('Training the logisitic regression...')
 
     # generalized linear model logistic regression P = log (P/(1-P)) = a + beta_1*NDVImax + beta_2*Area_vege + beta_3*NDVI_max/area_vege
     # generalized linear model logistic regression P = log (P/(1-P)) = a + beta_1*lg_train['ndvi']+ beta_2*lg_train['area'] + beta_3*lg_train['ndvi']:lg_train['area']
-    clf = LogisticRegression(random_state=0).fit(lg_train[['ndvi_max','area']], lg_train['veg_new'])
-    test_pred= clf.predict(lg_test[['ndvi_max','area']])
+    clf = LogisticRegression(random_state=0).fit(lg_train[['ndvi_max','area_x']], lg_train['veg_new'])
+    test_pred= clf.predict(lg_test[['ndvi_max','area_x']])
 
 
-    logger.info('Testin and metric computation...')
+    logger.info('Testing and metric computation...')
 
     cf = confusion_matrix(lg_test['veg_new'],test_pred)
     tn, fp, fn, tp = confusion_matrix(lg_test['veg_new'],test_pred).ravel()
@@ -81,10 +80,10 @@ if __name__ == "__main__":
     if not os.path.isfile('metrics.csv'):
         with open('metrics.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            row = ['tn', 'fp', 'fn', 'tp''accuracy','recall','f1-score']
+            row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp','accuracy','recall','f1-score']
             writer.writerow(row)
 
-    row = [tn, fp, fn, tp, accuracy_score(lg_test['veg_new'],test_pred),recall_score(lg_test['veg_new'],test_pred),f1_score(lg_test['veg_new'],test_pred)]
+    row = [TH_NDVI,TH_LUM,tn, fp, fn, tp, accuracy_score(lg_test['veg_new'],test_pred),recall_score(lg_test['veg_new'],test_pred),f1_score(lg_test['veg_new'],test_pred)]
     with open('metrics.csv', 'a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(row)

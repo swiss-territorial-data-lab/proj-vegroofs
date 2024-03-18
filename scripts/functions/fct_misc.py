@@ -74,7 +74,7 @@ def clip_labels(labels_gdf, tiles_gdf, fact=1):
         
     #assert(labels_gdf.crs.name == tiles_gdf.crs.name)
 
-    labels_tiles_sjoined_gdf = gpd.sjoin(labels_gdf, tiles_gdf, how='inner', predicate='intersects')
+    labels_tiles_sjoined_gdf = gpd.sjoin(labels_gdf, tiles_gdf, how='inner', predicate='within')
     
     def clip_row(row, fact=fact):
         
