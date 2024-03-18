@@ -8,6 +8,7 @@ import pandas as pd
 import geopandas as gpd
 import statistics
 from rasterstats import zonal_stats
+from sklearn.model_selection import train_test_split
 
 import csv
 from csv import writer
@@ -25,7 +26,7 @@ if __name__ == "__main__":
     logger.info('Parsing the config file...')
 
     parser = argparse.ArgumentParser(
-        description="The script detects the greenery on roofs")
+        description="The script detects and predict the greenery on roofs")
     parser.add_argument('-cfg', '--config_file', type=str, 
         help='Framework configuration file', 
         default="config/logReg.yaml")
@@ -38,6 +39,7 @@ if __name__ == "__main__":
     logger.info('Defining constants...')
 
     WORKING_DIR=cfg['working_directory']
+    RESULTS_DIR=cfg['results_directory']
 
     ORTHO_DIR=cfg['ortho_directory']
     NDVI_DIR=cfg['ndvi_directory']
@@ -51,6 +53,8 @@ if __name__ == "__main__":
     EPSG=cfg['epsg']
 
     os.chdir(WORKING_DIR)
+
+    _=fct_misc.ensure_dir_exists(RESULTS_DIR)
 
 
     logger.info('Stock path to images and corresponding NDVI and luminosity rasters...')
@@ -70,6 +74,18 @@ if __name__ == "__main__":
     # roofs.drop(columns=['essence', 'diam_tronc'], inplace=True)
     roofs.rename(columns={'class':'cls'}, inplace=True)
     roofs['geometry'] = roofs.buffer(-0.5)
+
+
+    logger.info('Defining training and test dataset...')   
+    
+    roofs['veg_new'].fillna(0, inplace = True)
+    lg_train, lg_test = train_test_split(roofs['EGID'], test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs['veg_new']) 
+    lg_train = pd.DataFrame(lg_train)
+    lg_train = lg_train.assign(train=1)
+    lg_test = pd.DataFrame(lg_test)
+    lg_test = lg_test.assign(train=0)
+    roofs_split = pd.concat([lg_train, lg_test], ignore_index=True)
+    roofs_split.to_csv(os.path.join(RESULTS_DIR,'EGID_train_test.csv'))
 
 
     logger.info('Getting the statistics of roofs...')
@@ -114,14 +130,14 @@ if __name__ == "__main__":
     cols=['min', 'max', 'median', 'mean', 'std']
     rounded_stats[cols]=rounded_stats[cols].round(3)
 
-    filepath=os.path.join(WORKING_DIR,'roof_stats.csv')
+    filepath=os.path.join(RESULTS_DIR,'roof_stats.csv')
     rounded_stats.to_csv(filepath)
     del rounded_stats, cols, filepath
 
 
     logger.info('Printing overall min, median and max of NDVI and luminosity for the GT green roofs...')
 
-    if not os.path.isfile('roof_stats_summary.csv'):
+    if not os.path.isfile(os.path.join(RESULTS_DIR,'roof_stats_summary.csv')):
         max_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['max'])
         median_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['median'])
         min_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['min'])
@@ -130,7 +146,7 @@ if __name__ == "__main__":
         median_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['band']=='lum')]['median'])
         min_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['band']=='lum')]['min'])
 
-        with open('roof_stats_summary.csv', 'w', newline='') as file:
+        with open(os.path.join(RESULTS_DIR,'roof_stats_summary.csv'), 'w', newline='') as file:
             writer = csv.writer(file)
             title= ['class','ndvi_min','ndvi_median','ndvi_max','lum_min','lum_mean','lum_max']
             row = ['tot', min_cls, median_cls, max_cls, min_cls_lum, median_cls_lum, max_cls_lum]
@@ -148,6 +164,6 @@ if __name__ == "__main__":
 
 
             row = [cls, min_cls, median_cls, max_cls, min_cls_lum, median_cls_lum, max_cls_lum]
-            with open('roof_stats_summary.csv', 'a', newline='') as file:
+            with open(os.path.join(RESULTS_DIR,'roof_stats_summary.csv'), 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(row)

@@ -202,7 +202,8 @@ def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
             "height": out_image.shape[1],
             "width": out_image.shape[2],
             "driver": "Gtiff",
-            "transform": out_transform
+            "transform": out_transform,
+            "nodata": 0
         })
 
         # output name is input name with added id

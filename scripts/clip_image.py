@@ -1,8 +1,8 @@
 import os, sys
 import yaml
+import argparse
 from loguru import logger
 import tqdm as tqdm
-import argparse
 
 import geopandas as gpd
 
@@ -29,19 +29,23 @@ if __name__ == "__main__":
         with open(args.config_file) as fp:
                 cfg = yaml.load(fp, Loader=yaml.FullLoader)['clip_image']
 
+
         logger.info('Defining constants...')
 
         WORKING_DIR=cfg['working_directory']
-        INPUTS=cfg['inputs']
 
+        INPUTS=cfg['inputs']
         ORTHO_DIR=INPUTS['ortho_directory']
         AOI=INPUTS['aoi']
-        TILE_DELIMITATION=INPUTS['tile_delimitation']
         EPSG=INPUTS['epsg']
-        OUTPUT_DIR=cfg['output_directory']
+
+        OUTPUTS=cfg['outputs']
+        OUTPUT_DIR=OUTPUTS['clip_ortho_directory']
+        TILE_DELIMITATION=OUTPUTS['extent_ortho_directory']
 
         os.chdir(WORKING_DIR)
         fct_misc.ensure_dir_exists(OUTPUT_DIR)
+
 
         logger.info('Reading AOI geometries...')
 

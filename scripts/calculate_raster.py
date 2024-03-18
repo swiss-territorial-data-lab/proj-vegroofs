@@ -2,7 +2,6 @@ import os, sys
 import yaml
 import argparse
 
-import geopandas as gpd
 import numpy as np
 import rasterio
 
@@ -32,11 +31,11 @@ def calculate_ndvi(tile, band_nbr_red=1, band_nbr_nir=0, path=None):
     red_band=image[band_nbr_red].astype('float32')
     nir_band=image[band_nbr_nir].astype('float32')
     ndvi_tile=np.divide((nir_band - red_band),(nir_band + red_band),
-                        out=np.zeros_like(nir_band - red_band),
+                        out=np.full_like(nir_band - red_band, -9999),
                         where=(nir_band + red_band)!=0)
 
     if path:
-        im_profile.update(count= 1, dtype='float32')
+        im_profile.update(count= 1, dtype='float32', nodata=-9999)
         with rasterio.open(path, 'w', **im_profile) as dst:
             dst.write(ndvi_tile,1)
 

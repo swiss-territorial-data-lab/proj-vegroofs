@@ -13,3 +13,4 @@ hydra-core
 omegaconf
 csv-file
 joblib
+tqdm-joblib

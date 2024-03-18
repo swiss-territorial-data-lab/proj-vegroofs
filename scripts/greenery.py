@@ -1,8 +1,11 @@
 import os, sys
 import yaml
-from tqdm import tqdm
-from loguru import logger
 import argparse
+from loguru import logger
+from joblib import Parallel, delayed
+import multiprocessing
+from threading import Lock
+from tqdm_joblib import tqdm_joblib
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
@@ -15,15 +18,10 @@ from rasterio.mask import mask
 from rasterio.features import shapes
 from shapely.geometry import shape
 
-from joblib import Parallel, delayed
-import multiprocessing
-from threading import Lock
-
 import csv
 from csv import writer
 
 import random
-from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
@@ -40,7 +38,7 @@ logger=fct_misc.format_logger(logger)
 @hydra.main(version_base=None, config_path="../config/", config_name="logReg")
 
 def my_app(cfg : DictConfig) -> None:
-    green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'hydraroof_lr.shp')) 
+    green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roof_4_lr.shp')) 
     logger.info('Greenery saved with hydra...')
 
 def do_greenery(tile,roofs):
@@ -51,9 +49,9 @@ def do_greenery(tile,roofs):
     ndvi_band = ndvi_dataset.read(1)
 
     with rasterio.open(tile.path_NDVI) as src:
-        out_image, out_transform = rasterio.mask.mask(src, shapes_roof, nodata=10, all_touched=True, crop=False)
+        out_image, out_transform = rasterio.mask.mask(src, shapes_roof, nodata=-9999, all_touched=True, crop=False)
 
-        mask = (ndvi_band >= TH_NDVI) & (lum_band <= TH_LUM) & (out_image[0]!=10)
+        mask = (ndvi_band >= TH_NDVI) & (lum_band <= TH_LUM) & (out_image[0]!=-9999)
 
         geoms = ((shape(s), v) for s, v in shapes(out_image[0], mask, transform=src.transform))
         gdf=gpd.GeoDataFrame(geoms, columns=['geometry', 'ndvi'])
@@ -67,8 +65,12 @@ def do_greenery(tile,roofs):
 
         return green_roofs_egid
 
-def log_reg(roofs_lr, TH_NDVI, TH_LUM):
-    lg_train, lg_test = train_test_split(roofs_lr, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs_lr['veg_new'])
+def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM):
+    egid_train_test = pd.read_csv(TRAIN_TEST)
+    roofs_lr = roofs_lr.merge(egid_train_test, on='EGID')
+    roofs_lr['veg_new'].fillna(0, inplace = True)
+    lg_train = roofs_lr.loc[(roofs_lr['train']==1)]
+    lg_test = roofs_lr.loc[(roofs_lr['train']==0)]
 
 
     logger.info('Training the logisitic regression...')
@@ -120,19 +122,18 @@ if __name__ == "__main__":
     ORTHO_DIR=cfg['ortho_directory']
     NDVI_DIR=cfg['ndvi_directory']
     LUM_DIR=cfg['lum_directory']
-    OUTPUT_DIR=cfg['lr_directory']
+    RESULTS_DIR=cfg['results_directory']
 
     TILE_DELIMITATION=cfg['tile_delimitation']
 
     ROOFS_POLYGONS=cfg['roofs_gt']
     ROOFS_LAYER=cfg['roofs_layer']
+    EGID_TRAIN_TEST=cfg['egid_train_test']
 
     TH_NDVI=cfg['th_ndvi']
     TH_LUM=cfg['th_lum']
 
     os.chdir(WORKING_DIR)
-    _=fct_misc.ensure_dir_exists(OUTPUT_DIR)
-
 
     logger.info('Linking path of images and corresponding NDVI and luminosity rasters...')
 
@@ -161,7 +162,9 @@ if __name__ == "__main__":
     num_cores = multiprocessing.cpu_count()
     print ("starting job on {} cores.".format(num_cores))  
 
-    green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
+    with tqdm_joblib(desc="Parallel greenery detection", total=tiles.shape[0]) as progress_bar:
+        green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
+
     # progress bar for parallel https://stackoverflow.com/questions/24983493/tracking-progress-of-joblib-parallel-execution
     green_roofs=gpd.GeoDataFrame()
     for row in green_roofs_list:
@@ -215,16 +218,16 @@ if __name__ == "__main__":
    
     logger.info('Outputting detected potential green roofs number...')
 
-    if not os.path.isfile('recap_green.csv'):
-        with open('recap_green.csv', 'w', newline='') as file:
+    if not os.path.isfile(os.path.join(RESULTS_DIR,'recap_green.csv')):
+        with open(os.path.join(RESULTS_DIR,'recap_green.csv'), 'w', newline='') as file:
             writer = csv.writer(file)
             row = ['TH_NDVI', 'TH_LUM', 'roofs_bare', 'roofs_green', 'green_roofs_bare', 'green_roofs_green']
             writer.writerow(row)
 
     row = [TH_NDVI, TH_LUM, sum(roofs_egid['veg_new']==0),sum(roofs_egid['veg_new']==1),sum(green_roofs_egid_att['veg_new']==0),sum(green_roofs_egid_att['veg_new']==1)]
-    with open('recap_green.csv', 'a',newline='') as file:
+    with open(os.path.join(RESULTS_DIR,'recap_green.csv'), 'a',newline='') as file:
         writer = csv.writer(file)
         writer.writerow(row)
 
-    log_reg(green_roofs_egid_att, TH_NDVI, TH_LUM)
+    log_reg(green_roofs_egid_att, EGID_TRAIN_TEST, TH_NDVI, TH_LUM)
     
