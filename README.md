@@ -20,7 +20,7 @@ No specific requirements.
 
 ```
 ├── config                        # config files
-├── data						  # data to process, see addendum
+├── data                          # data to process, see addendum
 ├── scripts
    ├── functions                  # set of functions used in R and python scripts
    ├── calculate_raster.py        # compute the NDVI and luminosity raster of the orthoimage tiles 
@@ -51,6 +51,7 @@ Scripts are run in combination with hard-coded configuration files in the follow
 2. `calculate_raster.py`
 3. `roof_stats.py`
 4. `greenery.py`
+
 (5. `log_reg.py`)
 
 
@@ -71,6 +72,7 @@ The logisitc regression approach was developed inspired by Louis-Lucas et al (1)
 	* Use logReg.yaml to specify the inputs data.
 
 (5. `log_reg`: focuses on the logistic regression part of the pipeline.)
+
 	* Use logReg.yaml to specify the inputs data.
 
 
@@ -100,14 +102,14 @@ Here following a proposition of data structure.
 	       ├── extent             # tile extent computed at the beginning of the workflow
            └── tiles              # image tiles
    ├── 02_intermediate            # intermediate results and processed data
-      ├── th					  # hydra documentation of values tested for the thresholds. 
+      ├── th                      # hydra documentation of values tested for the thresholds. 
       └── images
             ├── tiles             # clipped images
             ├── extent            # clipped tile extent 
             ├── luminosity        # luminosity tiles computed from NirRGB tiles
             └── ndvi              # NDVI tiles computed from NirRGB tiles
-   └── 03_results                # results of the workflows (training and test partition)
-      └── scratch				  # roof stats, boxplots
+   └── 03_results                 # results of the workflows (training and test partition)
+      └── scratch                 # roof stats, boxplots
 ```
 
 ### References
