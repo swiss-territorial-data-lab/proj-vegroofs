@@ -53,7 +53,7 @@ if __name__ == "__main__":
         aoi = aoi.filter(['geometry'])
         for index, row in aoi.iterrows():
                 row = row.copy()
-                aoi.loc[index, 'geometry'] = row.geometry.buffer(10)
+                aoi.loc[index, 'geometry'] = row.geometry.buffer(50,join_style=2)
 
         fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
         tiles=gpd.read_file(TILE_DELIMITATION)

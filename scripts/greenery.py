@@ -21,13 +21,6 @@ from shapely.geometry import shape
 import csv
 from csv import writer
 
-import random
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import f1_score
-from sklearn.metrics import recall_score
-
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc
 
@@ -65,38 +58,6 @@ def do_greenery(tile,roofs):
 
         return green_roofs_egid
 
-def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM):
-    egid_train_test = pd.read_csv(TRAIN_TEST)
-    roofs_lr = roofs_lr.merge(egid_train_test, on='EGID')
-    roofs_lr['veg_new'].fillna(0, inplace = True)
-    lg_train = roofs_lr.loc[(roofs_lr['train']==1)]
-    lg_test = roofs_lr.loc[(roofs_lr['train']==0)]
-
-
-    logger.info('Training the logisitic regression...')
-
-    random.seed(10)
-    clf = LogisticRegression(random_state=0).fit(lg_train[['ndvi_max','area']], lg_train['veg_new'])
-    test_pred= clf.predict(lg_test[['ndvi_max','area']])
-
-
-    logger.info('Testing and metric computation...')
-
-    cf = confusion_matrix(lg_test['veg_new'],test_pred)
-    tn, fp, fn, tp = confusion_matrix(lg_test['veg_new'],test_pred).ravel()
-
-    if not os.path.isfile('metrics.csv'):
-        with open('metrics.csv', 'w', newline='') as file:
-            writer = csv.writer(file)
-            row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp''accuracy','recall','f1-score']
-            writer.writerow(row)
-
-    row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(lg_test['veg_new'],test_pred),recall_score(lg_test['veg_new'],test_pred),f1_score(lg_test['veg_new'],test_pred)]
-    with open('metrics.csv', 'a', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(row)
-
-
 if __name__ == "__main__":
      
      
@@ -113,7 +74,7 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['dev']
 
     logger.info('Defining constants...')
 
@@ -165,43 +126,13 @@ if __name__ == "__main__":
     with tqdm_joblib(desc="Parallel greenery detection", total=tiles.shape[0]) as progress_bar:
         green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
 
-    # progress bar for parallel https://stackoverflow.com/questions/24983493/tracking-progress-of-joblib-parallel-execution
     green_roofs=gpd.GeoDataFrame()
     for row in green_roofs_list:
         green_roofs = pd.concat([green_roofs, row])
-         
-    # greenery = gpd.GeoDataFrame() ## TO parallelize !
-    # for tile in tqdm(tiles.itertuples(), desc='Thresholding on raster values', total=tiles.shape[0]):
-
-    #     lum_dataset = rasterio.open(tile.path_lum)
-    #     ndvi_dataset = rasterio.open(tile.path_NDVI)
-
-    #     lum_band = lum_dataset.read(1)
-    #     ndvi_band = ndvi_dataset.read(1)
-
-    #     with rasterio.open(tile.path_NDVI) as src:
-    #         image=src.read(1)
-
-    #         out_image, out_transform = rasterio.mask.mask(src, shapes_roof, nodata=10, all_touched=True, crop=False)
-    #         out_meta = src.meta
-
-    #         mask = (ndvi_band >= TH_NDVI) & (lum_band <= TH_LUM) & (out_image[0]!=10)
-
-    #         geoms = ((shape(s), v) for s, v in shapes(out_image[0], mask, transform=src.transform))
-    #         gdf=gpd.GeoDataFrame(geoms, columns=['geometry', 'ndvi'])
-    #         gdf.set_crs(crs=src.crs, inplace=True)
-
-    #     greenery = pd.concat([greenery, gdf])
-
-    # greenery.to_file(os.path.join(OUTPUT_DIR,'greenery.gpkg')) 
-
 
     logger.info('Join greenery on the roofs, dissolving and cleaning...')
 
-    # green_roofs = gpd.sjoin(greenery, roofs, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
-    # green_roofs.to_file(os.path.join(OUTPUT_DIR,'green_roofs.shp')) 
-
-    # filter for roof with at least 5 m2 and 3 m height by EGID and threshold on max NDVI to get rid of hovering vegetation
+    # filter for roof with at least 5 m2 by EGID and threshold on max NDVI to get rid of hovering vegetation
     green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
     green_roofs_egid.rename(columns={'ndvi':'ndvi_max'}, inplace=True)
     green_roofs_egid['area'] = green_roofs_egid.area
@@ -229,5 +160,5 @@ if __name__ == "__main__":
         writer = csv.writer(file)
         writer.writerow(row)
 
-    log_reg(green_roofs_egid_att, EGID_TRAIN_TEST, TH_NDVI, TH_LUM)
+    fct_misc.log_reg(green_roofs_egid_att, EGID_TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR)
     

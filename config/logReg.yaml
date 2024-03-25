@@ -2,29 +2,13 @@ hydra:
   run:
     dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
-# prod: 
-#   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
-#   ortho_directory: 02_intermediate/images/scratch/2023/GE/tiles
-#   ndvi_directory: 02_intermediate/images/scratch/2023/GE/ndvi
-#   lum_directory: 02_intermediate/images/scratch/2023/GE/lum
-#   lr_directory: 02_intermediate/lr
-#   aoi: 01_initial/aoi/STDL_ZH_AOI.shp
-#   tile_delimitation: 02_intermediate/images/scratch/2023/GE/extent/
-#   roofs_gt: 01_initial/gt/GE/label/gt_ge_bgu.shp
-#   roofs_layer: gt_zh
-#   roofs_lr: 02_intermediate/th/2024-03-06/12-25-37/-1_765_hydraroof_lr.shp
-#   egid_train_test: egid_train_test.csv
-#   th_ndvi: -1 # no thresholding -1
-#   th_lum: 765 # no thresholding 765
-#   epsg: 'epsg:2056'
-
-prod:
+dev:
   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
-  ortho_directory: 02_intermediate/images/tiles
-  tile_delimitation: 02_intermediate/images/extent/
-  ndvi_directory: 02_intermediate/images/ndvi
-  lum_directory: 02_intermediate/images/lum
-  results_directory: 03_results
+  ortho_directory: 02_intermediate/images/tlm/tiles
+  tile_delimitation: 02_intermediate/images/tlm/extent/
+  ndvi_directory: 02_intermediate/images/tlm/ndvi
+  lum_directory: 02_intermediate/images/tlm/lum
+  results_directory: 03_results/tlm
   aoi: 01_initial/aoi/STDL_ZH_AOI.shp
   roofs_gt: 01_initial/gt/gt_test.shp
   roofs_layer: gt_zh
@@ -32,3 +16,51 @@ prod:
   th_ndvi: 0 # no thresholding -1
   th_lum: 400 # no thresholding 765
   epsg: 'epsg:2056'
+
+# dev:
+#   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
+#   ortho_directory: 02_intermediate/images/scratch/tiles
+#   tile_delimitation: 02_intermediate/images/scratch/extent/
+#   ndvi_directory: 02_intermediate/images/scratch/ndvi
+#   lum_directory: 02_intermediate/images/scratch/lum
+#   results_directory: 03_results/scratch
+#   aoi: 01_initial/aoi/STDL_ZH_AOI.shp
+#   roofs_gt: 01_initial/gt/gt_test.shp
+#   roofs_layer: gt_zh
+#   roofs_lr: 02_intermediate/th/2024-03-25/14-20-01/0_400_roof_4_lr.shp
+#   egid_train_test: 03_results/egid_train_test.csv
+#   th_ndvi: 0 # no thresholding -1
+#   th_lum: 400 # no thresholding 765
+#   epsg: 'epsg:2056'
+
+
+# prod: 
+#   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
+#   ortho_directory: 02_intermediate/images/rs_tlm/tiles
+#   tile_delimitation: 02_intermediate/images/rs_tlm/extent/
+#   ndvi_directory: 02_intermediate/images/rs_tlm/ndvi
+#   lum_directory: 02_intermediate/images/rs_tlm/lum
+#   results_directory: 03_results/rs_tlm
+#   aoi: 01_initial/aoi/STDL_ZH_AOI.shp
+#   roofs_gt: 02_intermediate/gt/gt_tot.gpkg
+#   roofs_layer: gt_to_label
+#   egid_train_test: 03_results/egid_train_test.csv
+#   th_ndvi: -1 # no thresholding -1
+#   th_lum: 765 # no thresholding 765
+#   epsg: 'epsg:2056'
+
+# prod: 
+#   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
+#   ortho_directory: 02_intermediate/images/scratch/tiles
+#   tile_delimitation: 02_intermediate/images/scratch/extent/
+#   ndvi_directory: 02_intermediate/images/scratch/ndvi
+#   lum_directory: 02_intermediate/images/scratch/lum
+#   results_directory: 03_results/scratch
+#   aoi: 01_initial/aoi/STDL_ZH_AOI.shp
+#   roofs_gt: 02_intermediate/gt/gt_tot.gpkg
+#   roofs_layer: gt_to_label
+#   egid_train_test: 03_results/egid_train_test.csv
+#   th_ndvi: -1 # no thresholding -1
+#   th_lum: 765 # no thresholding 765
+#   epsg: 'epsg:2056'
+

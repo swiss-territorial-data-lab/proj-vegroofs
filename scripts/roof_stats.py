@@ -15,6 +15,7 @@ from csv import writer
 
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc
+from functions.fct_stats import pca_procedure
 
 logger=fct_misc.format_logger(logger)
 
@@ -34,7 +35,7 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['dev']
 
     logger.info('Defining constants...')
 
@@ -55,6 +56,9 @@ if __name__ == "__main__":
     os.chdir(WORKING_DIR)
 
     _=fct_misc.ensure_dir_exists(RESULTS_DIR)
+    written_files=[]
+
+    im_path=fct_misc.ensure_dir_exists(os.path.join(RESULTS_DIR,'boxplots'))
 
 
     logger.info('Stock path to images and corresponding NDVI and luminosity rasters...')
@@ -79,19 +83,19 @@ if __name__ == "__main__":
     logger.info('Defining training and test dataset...')   
     
     roofs['veg_new'].fillna(0, inplace = True)
-    lg_train, lg_test = train_test_split(roofs['EGID'], test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs['veg_new']) 
+    lg_train, lg_test = train_test_split(roofs, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs['cls']) 
     lg_train = pd.DataFrame(lg_train)
     lg_train = lg_train.assign(train=1)
     lg_test = pd.DataFrame(lg_test)
     lg_test = lg_test.assign(train=0)
     roofs_split = pd.concat([lg_train, lg_test], ignore_index=True)
-    roofs_split.to_csv(os.path.join(RESULTS_DIR,'EGID_train_test.csv'))
+    roofs_split.to_csv(os.path.join(RESULTS_DIR.split('/')[-2],'EGID_train_test.csv'))
 
 
     logger.info('Getting the statistics of roofs...')
 
     clipped_roofs=fct_misc.clip_labels(roofs, tiles)
-    clipped_roofs = clipped_roofs.loc[(clipped_roofs['veg_new']==1)]
+    # clipped_roofs = clipped_roofs.loc[(clipped_roofs['veg_new']==0)]
 
     roofs_stats=pd.DataFrame()                                                              
     calculated_stats=['min', 'max', 'mean', 'median', 'std']
@@ -99,7 +103,7 @@ if __name__ == "__main__":
     for roof in tqdm(clipped_roofs.itertuples(),
                     desc='Extracting statistics over clipped_roofs', total=clipped_roofs.shape[0]):    
         stats_ndvi=zonal_stats(roof.geometry, roof.path_NDVI, stats=calculated_stats,
-            band=1, nodata=99999)
+            band=1, nodata=-9999)
         
         stats_dict_ndvi=stats_ndvi[0]
         stats_dict_ndvi['band']='ndvi'
@@ -113,7 +117,7 @@ if __name__ == "__main__":
         roofs_stats=pd.concat([roofs_stats, pd.DataFrame(stats_dict_ndvi, index=[0])], ignore_index=True)
 
         stats_lum=zonal_stats(roof.geometry, roof.path_lum, stats=calculated_stats,
-            band=1, nodata=99999)
+            band=1, nodata=0)
         
         stats_dict_lum=stats_lum[0]    
         stats_dict_lum['band']='lum'
@@ -129,6 +133,9 @@ if __name__ == "__main__":
     rounded_stats=roofs_stats.copy()
     cols=['min', 'max', 'median', 'mean', 'std']
     rounded_stats[cols]=rounded_stats[cols].round(3)
+    rounded_stats = rounded_stats.dropna(axis=0,subset=['min','max','mean','std','median'])
+    rounded_stats.drop_duplicates(inplace=True)
+    rounded_stats.drop_duplicates(subset=['unID','band'], inplace=True)
 
     filepath=os.path.join(RESULTS_DIR,'roof_stats.csv')
     rounded_stats.to_csv(filepath)
@@ -152,7 +159,7 @@ if __name__ == "__main__":
             row = ['tot', min_cls, median_cls, max_cls, min_cls_lum, median_cls_lum, max_cls_lum]
             writer.writerows([title, row])
 
-    for cls in list(['i', 'l','e','s','t']):
+    for cls in list(['i', 'l','e','s','t','b']):
         if sum(roofs_stats['class']==cls)>0:
             max_cls = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['max'])
             median_cls = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['median'])
@@ -167,3 +174,28 @@ if __name__ == "__main__":
             with open(os.path.join(RESULTS_DIR,'roof_stats_summary.csv'), 'a', newline='') as file:
                 writer = csv.writer(file)
                 writer.writerow(row)
+
+    
+    roofs_stats.loc[roofs_stats['class']=='b', 'class']='1. b'
+    roofs_stats.loc[roofs_stats['class']=='t', 'class']='2. t'
+    roofs_stats.loc[roofs_stats['class']=='s', 'class']='3. s'
+    roofs_stats.loc[roofs_stats['class']=='e', 'class']='4. e'
+    roofs_stats.loc[roofs_stats['class']=='l', 'class']='5. l'
+    roofs_stats.loc[roofs_stats['class']=='i', 'class']='6. i'
+
+    for band in roofs_stats['band'].unique():
+        logger.info(f'For band {band}...')
+        band_stats=roofs_stats[roofs_stats['band']==band]
+
+        logger.info('... making some boxplots...')
+        bxplt_beeches=band_stats[calculated_stats + ['class']].plot.box(
+                                    by='class',
+                                    title=f'Statistics distribution for roofs per band {band}',
+                                    figsize=(18, 5),
+                                    grid=True,
+        )
+
+        fig=bxplt_beeches[0].get_figure()
+        filepath=os.path.join(im_path, f'boxplot_stats_band_{band}.jpg')
+        fig.savefig(filepath, bbox_inches='tight')
+        written_files.append(filepath)

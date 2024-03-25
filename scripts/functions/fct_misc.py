@@ -1,7 +1,9 @@
 import sys
 import os
 import tqdm as tqdm
+from loguru import logger
 
+import numpy as np
 import geopandas as gpd
 import pandas as pd
 from shapely.geometry import mapping, shape
@@ -12,8 +14,12 @@ from rasterio.mask import mask
 from rasterio.features import shapes
 from rasterio.features import dataset_features
 
-import numpy as np
-from loguru import logger
+import random
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
+from sklearn.metrics import recall_score
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -135,7 +141,7 @@ def generate_extent(PATH_IN, PATH_OUT, EPSG):
     pattern = ".tif"
     list_name = []
     ensure_dir_exists(PATH_OUT)
-    ensure_dir_exists(os.path.join(PATH_OUT,'tiles'))
+    #ensure_dir_exists(os.path.join(PATH_OUT,'tiles'))
 
     for path, subdirs, files in os.walk(PATH_IN):
         for name in files:
@@ -149,7 +155,8 @@ def generate_extent(PATH_IN, PATH_OUT, EPSG):
         logger.info('Computing extent of ' + str(_name) + '...')
 
         with rasterio.open(_tif) as src:
-            gdf = gpd.GeoDataFrame.from_features(dataset_features(src, bidx=2, as_mask=True, geographic=False, band=False))
+            gdf = gpd.GeoDataFrame.from_features(dataset_features(src, bidx=2, as_mask=True, geographic=False, band=False, with_nodata=True))
+            gdf = gdf.dissolve()
             if (str(src.crs)=='None'):
                 gdf = gdf.set_crs(EPSG)
             else:
@@ -157,7 +164,7 @@ def generate_extent(PATH_IN, PATH_OUT, EPSG):
             gdf.filename=_name.replace('.tif', '')
             gdf=gdf.drop(columns= ['val'])
             gdf=gdf.rename(columns={"filename":"NAME"})
-            gdf.to_file(os.path.join(PATH_OUT,'tiles',_name.replace('.tif', '.shp')))
+            #gdf.to_file(os.path.join(PATH_OUT,'tiles',_name.replace('.tif', '.shp')))
             ext_merge = pd.concat([ext_merge, gpd.GeoDataFrame(gdf, index=[0])], ignore_index=True)
             src.close()
 
@@ -216,3 +223,48 @@ def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
         
         logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
 
+def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM,WORKING_DIR):
+    egid_train_test = pd.read_csv(TRAIN_TEST)
+    egid_train_test = egid_train_test[['EGID', 'train']]
+    roofs_lr = roofs_lr.merge(egid_train_test, on='EGID')
+
+    # Alternative 1: output from greenery.py
+    roofs_lr['veg_new'].fillna(0, inplace = True)
+    desc_col = ['ndvi_max','area']
+    desc_col_egid = desc_col.copy()
+    desc_col_egid = desc_col_egid.append('EGID')
+
+    # # Alternative 2: read descriptors from roof_stats.py outputs
+    # desc = pd.read_csv(os.path.join(WORKING_DIR,'03_results/scratch/roof_stats.csv'))
+    # desc_col = ['min','max','mean','median','std']
+    # desc_col_egid = desc_col[:]
+    # desc_col_egid.append('EGID')
+    # desc_ndvi = desc[desc['band']=='ndvi']
+    # roofs_lr = roofs_lr.merge(desc_ndvi[desc_col_egid], on='EGID')
+    # roofs_lr = roofs_lr.dropna(axis=0,subset=desc_col_egid)
+
+    # lg_train = roofs_lr.loc[(roofs_lr['train']==1)]
+    # lg_test = roofs_lr.loc[(roofs_lr['train']==0)]
+
+    
+    logger.info('Training the logisitic regression...')
+
+    random.seed(10)
+    clf = LogisticRegression(random_state=0).fit(lg_train[desc_col], lg_train['veg_new'])
+    test_pred= clf.predict(lg_test[desc_col])
+
+    logger.info('Testing and metric computation...')
+
+    cf = confusion_matrix(lg_test['veg_new'],test_pred)
+    tn, fp, fn, tp = confusion_matrix(lg_test['veg_new'],test_pred).ravel()
+
+    if not os.path.isfile('metrics.csv'):
+        with open('metrics.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp''accuracy','recall','f1-score']
+            writer.writerow(row)
+
+    row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(lg_test['veg_new'],test_pred),recall_score(lg_test['veg_new'],test_pred),f1_score(lg_test['veg_new'],test_pred)]
+    with open('metrics.csv', 'a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(row)
