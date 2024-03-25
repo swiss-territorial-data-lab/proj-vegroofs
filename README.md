@@ -51,8 +51,7 @@ Scripts are run in combination with hard-coded configuration files in the follow
 2. `calculate_raster.py`
 3. `roof_stats.py`
 4. `greenery.py`
-
-(5. `log_reg.py`)
+5. `log_reg.py`
 
 
 ## Data preparation
@@ -71,8 +70,7 @@ The logisitc regression approach was developed inspired by Louis-Lucas et al (1)
 4. `greenery.py`: identify greenery on roofs based on NDVI values and luminosity to make a selection of roofs before training a logistic regression. 
 	* Use logReg.yaml to specify the inputs data.
 
-(5. `log_reg`: focuses on the logistic regression part of the pipeline.)
-
+5. `log_reg`: focuses on the logistic regression part of the pipeline.
 	* Use logReg.yaml to specify the inputs data.
 
 
@@ -99,7 +97,7 @@ Here following a proposition of data structure.
       ├── AOI                     # AOI shape file
       ├── ground_truth            # ground truth shape file
       └── scratch                 # aerial images
-	       ├── extent             # tile extent computed at the beginning of the workflow
+           ├── extent             # tile extent computed at the beginning of the workflow
            └── tiles              # image tiles
    ├── 02_intermediate            # intermediate results and processed data
       ├── th                      # hydra documentation of values tested for the thresholds. 
