@@ -15,7 +15,9 @@ from csv import writer
 
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc
-from functions.fct_stats import pca_procedure
+
+from math import isnan
+from itertools import filterfalse
 
 logger=fct_misc.format_logger(logger)
 
@@ -63,14 +65,11 @@ if __name__ == "__main__":
 
     logger.info('Stock path to images and corresponding NDVI and luminosity rasters...')
 
+    
     fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
-    tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR)
-
-    tiles['path_lum']=[os.path.join(LUM_DIR, tile_name + '_lum.tif') for tile_name in tiles.NAME.to_numpy()]
-    tiles['path_NDVI']=[os.path.join(NDVI_DIR, tile_name + '_NDVI.tif') for tile_name in tiles.NAME.to_numpy()]
-
+    tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR, LUM_DIR)
 
     logger.info('Loading roofs/ground truth...')
 
@@ -97,11 +96,35 @@ if __name__ == "__main__":
     clipped_roofs=fct_misc.clip_labels(roofs, tiles)
     # clipped_roofs = clipped_roofs.loc[(clipped_roofs['veg_new']==0)]
 
+
+    # # hovering vegetation filter
+    # TREE = "C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data/02_intermediate/autres/tlm3d_bb_einzelbaum_buf5m_aoi.gpkg"
+    # trees=gpd.read_file(TREE, layer='merge')
+    # trees.geometry=trees.geometry.buffer(2)
+    # clipped_roofs=gpd.overlay(clipped_roofs, trees, how='difference')
+    # clipped_roofs.to_file('test.gpkg')
+
     roofs_stats=pd.DataFrame()                                                              
     calculated_stats=['min', 'max', 'mean', 'median', 'std']
+    BANDS={1: 'nir', 2: 'red', 3: 'green', 4: 'blue'}
 
     for roof in tqdm(clipped_roofs.itertuples(),
                     desc='Extracting statistics over clipped_roofs', total=clipped_roofs.shape[0]):    
+        
+        for band_num in BANDS.keys():
+            stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats,band=band_num, nodata=0)
+
+            stats_dict_rgb=stats_rgb[0]
+            stats_dict_rgb['band']=BANDS[band_num]
+            stats_dict_rgb['veg_new']=roof.veg_new
+            stats_dict_rgb['class']=roof.cls
+            stats_dict_rgb['confidence']=roof.confidence
+            stats_dict_rgb['surface_ca']= roof.surface_ca 
+            stats_dict_rgb['unID']= roof.unID
+            stats_dict_rgb['EGID']= roof.EGID                                            
+            
+            roofs_stats=pd.concat([roofs_stats, pd.DataFrame(stats_dict_rgb, index=[0])], ignore_index=True)
+
         stats_ndvi=zonal_stats(roof.geometry, roof.path_NDVI, stats=calculated_stats,
             band=1, nodata=-9999)
         
@@ -145,13 +168,13 @@ if __name__ == "__main__":
     logger.info('Printing overall min, median and max of NDVI and luminosity for the GT green roofs...')
 
     if not os.path.isfile(os.path.join(RESULTS_DIR,'roof_stats_summary.csv')):
-        max_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['max'])
-        median_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['median'])
-        min_cls = statistics.median(roofs_stats.loc[(roofs_stats['band']=='ndvi')]['min'])
+        max_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['band']=='ndvi')]['max'])))
+        median_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['band']=='ndvi')]['median'])))
+        min_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['band']=='ndvi')]['min'])))
 
-        max_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['band']=='lum')]['max'])
-        median_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['band']=='lum')]['median'])
-        min_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['band']=='lum')]['min'])
+        max_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['band']=='lum')]['max'])))
+        median_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['band']=='lum')]['median'])))
+        min_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['band']=='lum')]['min'])))
 
         with open(os.path.join(RESULTS_DIR,'roof_stats_summary.csv'), 'w', newline='') as file:
             writer = csv.writer(file)
@@ -161,13 +184,13 @@ if __name__ == "__main__":
 
     for cls in list(['i', 'l','e','s','t','b']):
         if sum(roofs_stats['class']==cls)>0:
-            max_cls = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['max'])
-            median_cls = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['median'])
-            min_cls = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['min'])
+            max_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['max'])))
+            median_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['median'])))
+            min_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['min'])))
 
-            max_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['max'])
-            median_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['median'])
-            min_cls_lum = statistics.median(roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['min'])
+            max_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['max'])))
+            median_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['median'])))
+            min_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['min'])))
 
 
             row = [cls, min_cls, median_cls, max_cls, min_cls_lum, median_cls_lum, max_cls_lum]
