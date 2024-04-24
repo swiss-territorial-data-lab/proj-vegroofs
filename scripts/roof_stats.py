@@ -94,7 +94,7 @@ if __name__ == "__main__":
 
     logger.info('Getting the statistics of roofs...')
 
-    clipped_roofs=fct_misc.clip_labels(roofs, tiles)
+    clipped_roofs=fct_misc.clip_labels(labels_gdf=roofs, tiles_gdf=tiles)
     # clipped_roofs = clipped_roofs.loc[(clipped_roofs['veg_new']==0)]
 
     roofs_stats=pd.DataFrame()                                                              
