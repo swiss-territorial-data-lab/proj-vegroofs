@@ -38,7 +38,7 @@ def format_logger(logger):
 
 def test_crs(crs1, crs2 = "EPSG:2056"):
     '''
-    Take the crs of two dataframes and compare them. If they are not the same, stop the script.
+    Take the crs-string of two GeoDataframes and compare them. If they are not the same, stop the script.
     '''
     if isinstance(crs1, gpd.GeoDataFrame):
         crs1=crs1.crs
@@ -48,7 +48,7 @@ def test_crs(crs1, crs2 = "EPSG:2056"):
     try:
         assert(crs1 == crs2), f"CRS mismatch between the two files ({crs1} vs {crs2})."
     except Exception as e:
-        print(e)
+        logger.error(e)
         sys.exit(1)
 
 def ensure_dir_exists(dirpath):
@@ -60,11 +60,11 @@ def ensure_dir_exists(dirpath):
 
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
-        print(f"The directory {dirpath} was created.")
+        logger.info(f"The directory {dirpath} was created.")
 
     return dirpath
 
-def clip_labels(labels_gdf, tiles_gdf, fact=1):
+def clip_labels(labels_gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame, fact: int = 1):
     '''
     Clip the labels to the tiles
     Copied from the misc functions of the object detector 
@@ -99,7 +99,7 @@ def clip_labels(labels_gdf, tiles_gdf, fact=1):
 
     return clipped_labels_gdf
 
-def get_ortho_tiles(tiles, FOLDER_PATH_IN, FOLDER_PATH_OUT, WORKING_DIR=None):
+def get_ortho_tiles(tiles: gpd.GeoDataFrame, FOLDER_PATH_IN: str, FOLDER_PATH_OUT: str, WORKING_DIR: str = None):
     '''
     Get the true orthorectified tiles and the corresponding NDVI file based on the tile name.
 
@@ -113,17 +113,17 @@ def get_ortho_tiles(tiles, FOLDER_PATH_IN, FOLDER_PATH_OUT, WORKING_DIR=None):
     if WORKING_DIR:
         os.chdir(WORKING_DIR)
 
-    rgb_pathes=[]
-    ndvi_pathes=[]
+    rgb_paths=[]
+    ndvi_paths=[]
 
     for tile_name in tiles['NAME'].values:
-                                       
-        rgb_pathes.append(os.path.join(FOLDER_PATH_IN, tile_name + '.tif'))
-        ndvi_pathes.append(os.path.join(FOLDER_PATH_OUT, tile_name + '_NDVI.tif'))
+
+        rgb_paths.append(os.path.join(FOLDER_PATH_IN, tile_name + '.tif'))
+        ndvi_paths.append(os.path.join(FOLDER_PATH_OUT, tile_name + '_NDVI.tif'))
 
                
-    tiles['path_RGB']=rgb_pathes
-    tiles['path_NDVI']=ndvi_pathes
+    tiles['path_RGB']=rgb_paths
+    tiles['path_NDVI']=ndvi_paths
 
     return tiles
 
@@ -152,10 +152,12 @@ def generate_extent(PATH_IN, PATH_OUT, EPSG):
     for _name in list_name:
 
         _tif = os.path.join(PATH_IN, _name)
-        logger.info('Computing extent of ' + str(_name) + '...')
+        logger.info(f'Computing extent of {str(_name)} ...')
 
         with rasterio.open(_tif) as src:
-            gdf = gpd.GeoDataFrame.from_features(dataset_features(src, bidx=2, as_mask=True, geographic=False, band=False, with_nodata=True))
+            gdf = gpd.GeoDataFrame.from_features(
+                dataset_features(src, bidx=2, as_mask=True, geographic=False, band=False, with_nodata=True)
+                )
             gdf = gdf.dissolve()
             if (str(src.crs)=='None'):
                 gdf = gdf.set_crs(EPSG)
@@ -170,9 +172,8 @@ def generate_extent(PATH_IN, PATH_OUT, EPSG):
 
     ext_merge.to_file(os.path.join(PATH_OUT, 'extent.shp'))
 
-def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
-
-    """
+def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = 'epsg:2056'):
+    '''
     Clip TIFF images with a shape file. 
     This function clips tiff images based on a provided shapefile. The processed cells are saved as individual tiff images.
 
@@ -185,7 +186,7 @@ def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
 
     Returns:
     - None
-    """
+    '''
 
     with rasterio.open(os.path.join(TIFF_FOLDER, GPD.iloc[-1]['NAME']+'.tif')) as src:
 
@@ -223,7 +224,7 @@ def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
         
         logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
 
-def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM,WORKING_DIR):
+def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR):
     egid_train_test = pd.read_csv(TRAIN_TEST)
     egid_train_test = egid_train_test[['EGID', 'train']]
     roofs_lr = roofs_lr.merge(egid_train_test, on='EGID')
