@@ -72,6 +72,9 @@ coverage.xml
 *.mo
 *.pot
 
+# QGIS stuff:
+*.qgz
+
 # Django stuff:
 *.log
 local_settings.py
