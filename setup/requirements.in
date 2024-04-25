@@ -8,3 +8,4 @@ tqdm-joblib
 hydra-core
 rasterstats
 matplotlib
+plotly

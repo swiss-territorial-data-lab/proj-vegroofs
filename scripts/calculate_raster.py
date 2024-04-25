@@ -78,7 +78,7 @@ if __name__ == "__main__":
     logger.info('Parsing the config file...')
 
     parser = argparse.ArgumentParser(
-        description="The scripts compute NDVI and luminosity from NRGB rasters.")
+        description="This script computes NDVI and luminosity from NRGB rasters.")
     parser.add_argument('-cfg', '--config_file', type=str, 
         help='Framework configuration file', 
         default="config/logReg.yaml")
