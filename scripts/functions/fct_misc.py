@@ -16,13 +16,10 @@ from rasterio.features import dataset_features
 
 import random
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import recall_score
-
-import csv
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -41,7 +38,7 @@ def format_logger(logger):
 
 def test_crs(crs1, crs2 = "EPSG:2056"):
     '''
-    Take the crs of two dataframes and compare them. If they are not the same, stop the script.
+    Take the crs-string of two GeoDataframes and compare them. If they are not the same, stop the script.
     '''
     if isinstance(crs1, gpd.GeoDataFrame):
         crs1=crs1.crs
@@ -51,7 +48,7 @@ def test_crs(crs1, crs2 = "EPSG:2056"):
     try:
         assert(crs1 == crs2), f"CRS mismatch between the two files ({crs1} vs {crs2})."
     except Exception as e:
-        print(e)
+        logger.error(e)
         sys.exit(1)
 
 def ensure_dir_exists(dirpath):
@@ -63,11 +60,11 @@ def ensure_dir_exists(dirpath):
 
     if not os.path.exists(dirpath):
         os.makedirs(dirpath)
-        print(f"The directory {dirpath} was created.")
+        logger.info(f"The directory {dirpath} was created.")
 
     return dirpath
 
-def clip_labels(labels_gdf, tiles_gdf, fact=1):
+def clip_labels(labels_gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame, fact: int = 1):
     '''
     Clip the labels to the tiles
     Copied from the misc functions of the object detector 
@@ -102,7 +99,7 @@ def clip_labels(labels_gdf, tiles_gdf, fact=1):
 
     return clipped_labels_gdf
 
-def get_ortho_tiles(tiles, FOLDER_PATH_IN, FOLDER_PATH_NDVI, FOLDER_PATH_LUM, WORKING_DIR=None):
+def get_ortho_tiles(tiles: gpd.GeoDataFrame, FOLDER_PATH_IN: str, FOLDER_PATH_OUT: str, WORKING_DIR: str = None):
     '''
     Get the true orthorectified tiles and the corresponding NDVI file based on the tile name.
 
@@ -116,25 +113,17 @@ def get_ortho_tiles(tiles, FOLDER_PATH_IN, FOLDER_PATH_NDVI, FOLDER_PATH_LUM, WO
     if WORKING_DIR:
         os.chdir(WORKING_DIR)
 
-    rgb_pathes=[]
-    ndvi_pathes=[]
-    lum_pathes=[]
+    rgb_paths=[]
+    ndvi_paths=[]
 
     for tile_name in tiles['NAME'].values:
-        if '' in tile_name:                                      
-            rgb_pathes.append(os.path.join(FOLDER_PATH_IN, tile_name + '.tif'))
-            ndvi_pathes.append(os.path.join(FOLDER_PATH_NDVI, tile_name + '_NDVI.tif'))
-            lum_pathes.append(os.path.join(FOLDER_PATH_LUM, tile_name + '_lum.tif'))
-        else:
-            rgb_pathes.append('')
-            ndvi_pathes.append('')  
-            lum_pathes.append('')
-                    
-    tiles['path_RGB']=rgb_pathes
-    tiles['path_NDVI']=ndvi_pathes
-    tiles['path_lum']=lum_pathes
 
-    tiles = tiles[tiles.path_RGB!='']
+        rgb_paths.append(os.path.join(FOLDER_PATH_IN, tile_name + '.tif'))
+        ndvi_paths.append(os.path.join(FOLDER_PATH_OUT, tile_name + '_NDVI.tif'))
+
+               
+    tiles['path_RGB']=rgb_paths
+    tiles['path_NDVI']=ndvi_paths
 
     return tiles
 
@@ -163,10 +152,12 @@ def generate_extent(PATH_IN, PATH_OUT, EPSG):
     for _name in list_name:
 
         _tif = os.path.join(PATH_IN, _name)
-        logger.info('Computing extent of ' + str(_name) + '...')
+        logger.info(f'Computing extent of {str(_name)} ...')
 
         with rasterio.open(_tif) as src:
-            gdf = gpd.GeoDataFrame.from_features(dataset_features(src, bidx=2, as_mask=True, geographic=False, band=False, with_nodata=True))
+            gdf = gpd.GeoDataFrame.from_features(
+                dataset_features(src, bidx=2, as_mask=True, geographic=False, band=False, with_nodata=True)
+                )
             gdf = gdf.dissolve()
             if (str(src.crs)=='None'):
                 gdf = gdf.set_crs(EPSG)
@@ -181,9 +172,8 @@ def generate_extent(PATH_IN, PATH_OUT, EPSG):
 
     ext_merge.to_file(os.path.join(PATH_OUT, 'extent.shp'))
 
-def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
-
-    """
+def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = 'epsg:2056'):
+    '''
     Clip TIFF images with a shape file. 
     This function clips tiff images based on a provided shapefile. The processed cells are saved as individual tiff images.
 
@@ -196,7 +186,7 @@ def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
 
     Returns:
     - None
-    """
+    '''
 
     with rasterio.open(os.path.join(TIFF_FOLDER, GPD.iloc[-1]['NAME']+'.tif')) as src:
 
@@ -234,85 +224,48 @@ def clip_im(TIFF_FOLDER, GPD, OUT_FOLDER, idx, EPSG):
         
         logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
 
-def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM,WORKING_DIR):
+def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR):
     egid_train_test = pd.read_csv(TRAIN_TEST)
     egid_train_test = egid_train_test[['EGID', 'train']]
     roofs_lr = roofs_lr.merge(egid_train_test, on='EGID')
 
-    # # Alternative 1: output from greenery.py
-    # roofs_lr['veg_new'].fillna(0, inplace = True)
-    # desc_col = ['ndvi_max','area']
-    # desc_col_egid = desc_col.copy()
-    # desc_col_egid = desc_col_egid.append('EGID')
+    # Alternative 1: output from greenery.py
+    roofs_lr['veg_new'].fillna(0, inplace = True)
+    desc_col = ['ndvi_max','area']
+    desc_col_egid = desc_col.copy()
+    desc_col_egid = desc_col_egid.append('EGID')
 
-    # Alternative 2: read descriptors from roof_stats.py outputs
-    desc = pd.read_csv(os.path.join(WORKING_DIR,'03_results/scratch/roof_stats.csv'))
-    desc_col = ['min','max','mean','median','std']
-    desc_col_egid = desc_col[:]
-    desc_col_egid.append('EGID')
-    desc_ndvi = desc[desc['band']=='ndvi']
-    roofs_lr = roofs_lr.merge(desc_ndvi[desc_col_egid], on='EGID')
-    roofs_lr = roofs_lr.dropna(axis=0,subset=desc_col_egid)
-    desc_tmp = desc[desc['band']=='lum']
-    roofs_lr = roofs_lr.merge(desc_tmp[desc_col_egid], on='EGID', suffixes=('', '_lum'))
-    desc_tmp = desc[desc['band']=='red']
-    roofs_lr = roofs_lr.merge(desc_tmp[desc_col_egid], on='EGID', suffixes=('', '_r'))
-    desc_tmp = desc[desc['band']=='blue']
-    roofs_lr = roofs_lr.merge(desc_tmp[desc_col_egid], on='EGID', suffixes=('', '_b'))
-    desc_tmp = desc[desc['band']=='green']
-    roofs_lr = roofs_lr.merge(desc_tmp[desc_col_egid], on='EGID', suffixes=('', '_g'))
-    desc_tmp = desc[desc['band']=='nir']
-    roofs_lr = roofs_lr.merge(desc_tmp[desc_col_egid], on='EGID', suffixes=('', '_nir'))
+    # # Alternative 2: read descriptors from roof_stats.py outputs
+    # desc = pd.read_csv(os.path.join(WORKING_DIR,'03_results/scratch/roof_stats.csv'))
+    # desc_col = ['min','max','mean','median','std']
+    # desc_col_egid = desc_col[:]
+    # desc_col_egid.append('EGID')
+    # desc_ndvi = desc[desc['band']=='ndvi']
+    # roofs_lr = roofs_lr.merge(desc_ndvi[desc_col_egid], on='EGID')
+    # roofs_lr = roofs_lr.dropna(axis=0,subset=desc_col_egid)
 
+    # lg_train = roofs_lr.loc[(roofs_lr['train']==1)]
+    # lg_test = roofs_lr.loc[(roofs_lr['train']==0)]
 
-
-    desc_col = ['min','max','mean','median','std','min_lum','max_lum','mean_lum','median_lum','std_lum',
-                'min_r','max_r','mean_r','median_r','std_r','min_b','max_b','mean_b','median_b','std_b',
-                'min_g','max_g','mean_g','median_g','std_g','min_nir','max_nir','mean_nir','median_nir','std_nir','surface_ca']
-
-    lg_train = roofs_lr.loc[(roofs_lr['train']==1)]
-    lg_test = roofs_lr.loc[(roofs_lr['train']==0)]
-
-    ## Cross-validation ZH-GE (ZH=unID=1-1446)
-    # lg_train = roofs_lr.loc[(roofs_lr['unID']>1446)]
-    # lg_test = roofs_lr.loc[(roofs_lr['unID']<=1446)]
-
-
-    ## Decrease the number of training bare samples
-    # lg_train_bare = lg_train[lg_train['veg_new']==0]
-    # lg_train_veg = lg_train[lg_train['veg_new']==1]
-    # lg_train_bare=lg_train_bare[lg_train_bare.index % 7 == 0]
-    # lg_train=pd.concat([pd.DataFrame(lg_train_bare), pd.DataFrame(lg_train_veg)], ignore_index=True)
-
+    
     logger.info('Training the logisitic regression...')
 
     random.seed(10)
-    #LogisticRegression(penalty='l2', *, dual=False, tol=0.0001, C=1.0, fit_intercept=True, intercept_scaling=1, 
-                        # class_weight='balanced', random_state=None, solver='lbfgs', max_iter=100, multi_class='auto', 
-                        # verbose=0, warm_start=False, n_jobs=None, l1_ratio=None)
-    # RandomForestClassifier(n_estimators=100, *, criterion='gini', max_depth=None, min_samples_split=2, 
-                            # min_samples_leaf=1, min_weight_fraction_leaf=0.0, max_features='sqrt', max_leaf_nodes=None, min_impurity_decrease=0.0, 
-                            # bootstrap=True, oob_score=False, n_jobs=None, random_state=0, verbose=0, warm_start=False, class_weight='balanced', 
-                            # ccp_alpha=0.0, max_samples=None, monotonic_cst=None)
-    # clf = LogisticRegression(penalty='l2', C=1.0, class_weight='balanced', random_state=0,solver='liblinear', 
-    #                          max_iter=100).fit(lg_train[desc_col], lg_train['veg_new']).fit(lg_train[desc_col], lg_train['veg_new'])
-    clf = RandomForestClassifier(n_estimators=500, random_state=0, class_weight='balanced').fit(lg_train[desc_col], lg_train['veg_new'])
+    clf = LogisticRegression(random_state=0).fit(lg_train[desc_col], lg_train['veg_new'])
     test_pred= clf.predict(lg_test[desc_col])
 
     logger.info('Testing and metric computation...')
 
-    cf = confusion_matrix(lg_test['veg_new'],test_pred, labels= [0,1]) #labels=['b','t','s','e','l','i']
+    cf = confusion_matrix(lg_test['veg_new'],test_pred)
     tn, fp, fn, tp = confusion_matrix(lg_test['veg_new'],test_pred).ravel()
 
     if not os.path.isfile('metrics.csv'):
         with open('metrics.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp','accuracy','recall','f1-score','model']
+            row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp''accuracy','recall','f1-score']
             writer.writerow(row)
 
-    row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(lg_test['veg_new'],test_pred),recall_score(lg_test['veg_new'],test_pred),f1_score(lg_test['veg_new'],test_pred),str(clf)]
+    row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(lg_test['veg_new'],test_pred),recall_score(lg_test['veg_new'],test_pred),f1_score(lg_test['veg_new'],test_pred)]
     with open('metrics.csv', 'a', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(row)
-
-    print('BIS !')

@@ -2,20 +2,20 @@ hydra:
   run:
     dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
-# dev:
-#   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
-#   ortho_directory: 02_intermediate/images/tlm/tiles
-#   tile_delimitation: 02_intermediate/images/tlm/extent/
-#   ndvi_directory: 02_intermediate/images/tlm/ndvi
-#   lum_directory: 02_intermediate/images/tlm/lum
-#   results_directory: 03_results/tlm
-#   aoi: 01_initial/aoi/STDL_ZH_AOI.shp
-#   roofs_gt: 01_initial/gt/gt_test.shp
-#   roofs_layer: gt_zh
-#   egid_train_test: 03_results/egid_train_test.csv
-#   th_ndvi: 0 # no thresholding -1
-#   th_lum: 400 # no thresholding 765
-#   epsg: 'epsg:2056'
+dev:
+  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
+  ortho_directory: 02_intermediate/images/tlm/tiles
+  tile_delimitation: 02_intermediate/images/tlm/extent/
+  ndvi_directory: 02_intermediate/images/tlm/ndvi
+  lum_directory: 02_intermediate/images/tlm/lum
+  results_directory: 03_results/tlm
+  aoi: 01_initial/aoi/STDL_ZH_AOI.shp
+  roofs_gt: 01_initial/gt/gt_test.shp
+  roofs_layer: gt_zh
+  egid_train_test: 03_results/egid_train_test.csv
+  th_ndvi: 0 # no thresholding -1
+  th_lum: 400 # no thresholding 765
+  epsg: 'epsg:2056'
 
 # dev:
 #   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
@@ -49,19 +49,18 @@ hydra:
 #   th_lum: 765 # no thresholding 765
 #   epsg: 'epsg:2056'
 
-prod: 
-  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
-  ortho_directory: 02_intermediate/images/scratch/tiles
-  tile_delimitation: 02_intermediate/images/scratch/extent/
-  ndvi_directory: 02_intermediate/images/scratch/ndvi
-  lum_directory: 02_intermediate/images/scratch/lum
-  results_directory: 03_results/scratch
-  aoi: 01_initial/aoi/STDL_ZH_AOI.shp
-  roofs_gt: 02_intermediate/gt/gt_tot.gpkg
-  roofs_layer: gt_to_label
-  roofs_lr: 02_intermediate/gt/gt_tot.gpkg
-  egid_train_test: 03_results/egid_train_test.csv
-  th_ndvi: -1 # no thresholding -1
-  th_lum: 765 # no thresholding 765
-  epsg: 'epsg:2056'
+# prod: 
+#   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
+#   ortho_directory: 02_intermediate/images/scratch/tiles
+#   tile_delimitation: 02_intermediate/images/scratch/extent/
+#   ndvi_directory: 02_intermediate/images/scratch/ndvi
+#   lum_directory: 02_intermediate/images/scratch/lum
+#   results_directory: 03_results/scratch
+#   aoi: 01_initial/aoi/STDL_ZH_AOI.shp
+#   roofs_gt: 02_intermediate/gt/gt_tot.gpkg
+#   roofs_layer: gt_to_label
+#   egid_train_test: 03_results/egid_train_test.csv
+#   th_ndvi: -1 # no thresholding -1
+#   th_lum: 765 # no thresholding 765
+#   epsg: 'epsg:2056'
 

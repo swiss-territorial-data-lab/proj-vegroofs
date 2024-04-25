@@ -100,7 +100,7 @@ if __name__ == "__main__":
 
     tiles=gpd.read_file(TILE_DELIMITATION)
 
-    tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR, LUM_DIR)
+    tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR)
 
     tiles['path_lum']=[os.path.join(LUM_DIR, tile_name + '_lum.tif') for tile_name in tiles.NAME.to_numpy()]
     tiles['path_NDVI']=[os.path.join(NDVI_DIR, tile_name + '_NDVI.tif') for tile_name in tiles.NAME.to_numpy()]
@@ -119,9 +119,9 @@ if __name__ == "__main__":
     with fiona.open(ROOFS_POLYGONS, "r") as shapefile:
         shapes_roof = [feature["geometry"] for feature in shapefile]
 
-    print("Multithreading with joblib for statistics over beeches: ")
+    logger.info("Multithreading with joblib for statistics over roofs: ")
     num_cores = multiprocessing.cpu_count()
-    print ("starting job on {} cores.".format(num_cores))  
+    logger.info(f"starting job on {num_cores} cores.")  
 
     with tqdm_joblib(desc="Parallel greenery detection", total=tiles.shape[0]) as progress_bar:
         green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
@@ -159,6 +159,3 @@ if __name__ == "__main__":
     with open(os.path.join(RESULTS_DIR,'recap_green.csv'), 'a',newline='') as file:
         writer = csv.writer(file)
         writer.writerow(row)
-
-    fct_misc.log_reg(green_roofs_egid_att, EGID_TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR)
-    
