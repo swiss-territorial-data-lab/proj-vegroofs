@@ -6,18 +6,18 @@ from loguru import logger
 import argparse
 
 import geopandas as gpd
-import pandas as pd
+# import pandas as pd
 
-import random
-from sklearn.model_selection import train_test_split
-from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
-from sklearn.metrics import f1_score
-from sklearn.metrics import recall_score
+# import random
+# from sklearn.model_selection import train_test_split
+# from sklearn.linear_model import LogisticRegression
+# from sklearn.metrics import confusion_matrix
+# from sklearn.metrics import accuracy_score
+# from sklearn.metrics import f1_score
+# from sklearn.metrics import recall_score
 
-import csv
-from csv import writer
+# import csv
+# from csv import writer
 
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc
@@ -46,9 +46,11 @@ if __name__ == "__main__":
     logger.info('Defining constants...')
 
     WORKING_DIR=cfg['working_directory']
-    RESULTS_DIR=cfg['results_directory']
+    STAT_DIR=cfg['results_directory']
 
     ROOFS_LR=cfg['roofs_lr']
+    CLS_LR=cfg['cls_lr']
+    MODEL_ML=cfg['model_ml']
     TRAIN_TEST=cfg['egid_train_test']
 
     TH_NDVI=cfg['th_ndvi']
@@ -57,4 +59,4 @@ if __name__ == "__main__":
     os.chdir(WORKING_DIR)
 
     roofs_lr = gpd.read_file(ROOFS_LR)
-    fct_misc.log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR)
+    fct_misc.log_reg(roofs_lr,CLS_LR, MODEL_ML, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)

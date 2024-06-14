@@ -31,7 +31,9 @@ logger=fct_misc.format_logger(logger)
 @hydra.main(version_base=None, config_path="../config/", config_name="logReg")
 
 def my_app(cfg : DictConfig) -> None:
-    green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roof_4_lr.shp')) 
+    green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'green_roofs.shp')) 
+    roofs_egid_green.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'gt_tot_green.shp')) 
+
     logger.info('Greenery saved with hydra...')
 
 def do_greenery(tile,roofs):
@@ -55,6 +57,8 @@ def do_greenery(tile,roofs):
 
         # filter for roof with at least 5 m2 and 3 m height by EGID and threshold on max NDVI to get rid of hovering vegetation
         green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
+        green_roofs_egid['EGID']=green_roofs_egid.index
+        green_roofs_egid.index.names = ['Index']
 
         return green_roofs_egid
 
@@ -74,7 +78,7 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['dev']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
 
     logger.info('Defining constants...')
 
@@ -89,15 +93,20 @@ if __name__ == "__main__":
 
     ROOFS_POLYGONS=cfg['roofs_gt']
     ROOFS_LAYER=cfg['roofs_layer']
-    EGID_TRAIN_TEST=cfg['egid_train_test']
+    CHM_LAYER=cfg['chm_layer']
 
     TH_NDVI=cfg['th_ndvi']
     TH_LUM=cfg['th_lum']
+    EPSG=cfg['epsg']
 
     os.chdir(WORKING_DIR)
 
+    _=fct_misc.ensure_dir_exists(RESULTS_DIR)
+
+
     logger.info('Linking path of images and corresponding NDVI and luminosity rasters...')
 
+    #fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
     tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR, LUM_DIR)
@@ -109,10 +118,10 @@ if __name__ == "__main__":
     logger.info('Loading roofs/ground truth...')
 
     roofs=gpd.read_file(ROOFS_POLYGONS)
-    # roofs.drop(columns=['essence', 'diam_tronc'], inplace=True)
     roofs.rename(columns={'class':'cls'}, inplace=True)
     roofs['geometry'] = roofs.buffer(-0.5)
     roofs_egid = roofs.dissolve(by='EGID', aggfunc='first')
+    roofs_egid['area']=roofs_egid.area
 
     logger.info('Extracting greenery from raster with thresholds...')
 
@@ -130,23 +139,38 @@ if __name__ == "__main__":
     for row in green_roofs_list:
         green_roofs = pd.concat([green_roofs, row])
 
-    logger.info('Join greenery on the roofs, dissolving and cleaning...')
-
-    # filter for roof with at least 5 m2 by EGID and threshold on max NDVI to get rid of hovering vegetation
     green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
     green_roofs_egid.rename(columns={'ndvi':'ndvi_max'}, inplace=True)
-    green_roofs_egid['area'] = green_roofs_egid.area
-    #green_roofs_egid.to_file(os.path.join(OUTPUT_DIR,'green_roofs_egid.shp')) 
-    green_roofs_egid = green_roofs_egid.loc[(green_roofs_egid['area']>5)]
-    green_roofs_egid = green_roofs_egid.loc[(green_roofs_egid['ndvi_max']<0.8)]
-    #green_roofs_egid.to_file(os.path.join(OUTPUT_DIR,'green_roofs_egid.shp')) 
+    green_roofs_egid['EGID']=green_roofs_egid.index
+    green_roofs_egid.index.names = ['Index']
 
-    roofs_egid = pd.DataFrame(roofs_egid.drop(columns='geometry'))
-    green_roofs_egid_att = green_roofs_egid.merge(roofs_egid,on=['EGID'])
-    #green_roofs_egid_att.to_file(os.path.join(OUTPUT_DIR,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roof_lr.shp')) 
+    logger.info('Filtering for overhanging vegetation...')
+
+    CHM = os.path.join(WORKING_DIR, CHM_LAYER)
+    CHM_GPD=gpd.read_file(CHM)
+    CHM_GPD['geometry'] = CHM_GPD.buffer(1)
+    green_roofs_egid=gpd.overlay(green_roofs_egid, CHM_GPD, how='difference')
+    green_roofs_egid['area_green'] = green_roofs_egid.area
+
     
+    logger.info('Join greenery on the roofs and vice-versa, saving...')
+
+    roofs_egid_pd = pd.DataFrame(roofs_egid.drop(columns='geometry'))
+    green_roofs_egid_att = green_roofs_egid.merge(roofs_egid_pd,on=['EGID'])
+    green_roofs_egid_att['EGID']=green_roofs_egid_att.index
+    green_roofs_egid_att.index.names = ['Index']
+    green_roofs_egid_att['area_ratio'] = green_roofs_egid_att['area_green']/green_roofs_egid_att['area']
+
+    green_roofs_egid_pd = pd.DataFrame(green_roofs_egid.drop(columns='geometry'))
+    roofs_egid_green = roofs_egid.merge(green_roofs_egid_pd,on=['EGID'])
+    roofs_egid_green['EGID']=roofs_egid_green.index
+    roofs_egid_green.index.names = ['Index']
+    roofs_egid_green['area_green'] = roofs_egid_green['area_green'].fillna(0)
+    roofs_egid_green['area_ratio'] = roofs_egid_green['area_green']/roofs_egid_green['area']
+
     my_app()
    
+
     logger.info('Outputting detected potential green roofs number...')
 
     if not os.path.isfile(os.path.join(RESULTS_DIR,'recap_green.csv')):
