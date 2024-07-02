@@ -23,20 +23,20 @@ hydra:
 
 prod: 
   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
-  ortho_directory: 02_intermediate/images/scratch/tiles
-  tile_delimitation: 02_intermediate/images/scratch/extent/
-  ndvi_directory: 02_intermediate/images/scratch/ndvi
-  lum_directory: 02_intermediate/images/scratch/lum
-  roofs_gt: 02_intermediate/gt/gt_tot.gpkg # 02_intermediate/th/2024-06-12/09-39-35/0_765_roof_4_lr.shp  #02_intermediate/gt/gt_tot.gpkg #
-  roofs_layer: gt_to_label
+  ortho_directory: 02_intermediate/images/rs_tlm/tiles
+  tile_delimitation: 02_intermediate/images/rs_tlm/extent/
+  ndvi_directory: 02_intermediate/images/rs_tlm/ndvi
+  lum_directory: 02_intermediate/images/rs_tlm/lum
+  roofs_gt: 02_intermediate/gt/gt_tot.gpkg # 02_intermediate/autres/swissbuilding_aoi.gpkg
+  roofs_layer: joined_layer
   chm_layer: 02_intermediate/autres/CHM_AOI.gpkg
-  results_directory: 03_results/scratch_gt/
+  results_directory: 03_results/rs_tlm_sb_noratio/
   egid_train_test: egid_train_test_gt.csv
-  roofs_lr: 02_intermediate/th/2024-06-14/10-10-21/0_765_gt_tot_green.shp
+  roofs_lr: 02_intermediate/autres/swissbuilding_aoi.gpkg # 02_intermediate/gt/gt_tot.gpkg #02_intermediate/th/2024-06-14/15-02-41/0_765_gt_tot_green.shp
   predicate_sjoin: 'within'
-  th_ndvi: 0 # no thresholding -1
-  th_lum: 765 # no thresholding 765
-  cls_lr: 'multi' # 'multi' 'multi_aggreg'
+  th_ndvi: -1 # no thresholding -1
+  th_lum: 210000 # no thresholding 765 or 210000
+  cls_lr: 'multi' # 'binary' 'multi' 'multi_aggreg'
   model_ml: 'LR' # 'LR' 'RF'
   epsg: 'epsg:2056'
 

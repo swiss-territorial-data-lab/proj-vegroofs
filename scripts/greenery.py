@@ -37,16 +37,16 @@ def my_app(cfg : DictConfig) -> None:
     logger.info('Greenery saved with hydra...')
 
 def do_greenery(tile,roofs):
-    lum_dataset = rasterio.open(tile.path_lum)
+    #lum_dataset = rasterio.open(tile.path_lum)
     ndvi_dataset = rasterio.open(tile.path_NDVI)
 
-    lum_band = lum_dataset.read(1)
+    #lum_band = lum_dataset.read(1)
     ndvi_band = ndvi_dataset.read(1)
 
     with rasterio.open(tile.path_NDVI) as src:
         out_image, out_transform = rasterio.mask.mask(src, shapes_roof, nodata=-9999, all_touched=True, crop=False)
 
-        mask = (ndvi_band >= TH_NDVI) & (lum_band <= TH_LUM) & (out_image[0]!=-9999)
+        mask = (ndvi_band >= TH_NDVI) & (out_image[0]!=-9999) #& (lum_band <= TH_LUM)
 
         geoms = ((shape(s), v) for s, v in shapes(out_image[0], mask, transform=src.transform))
         gdf=gpd.GeoDataFrame(geoms, columns=['geometry', 'ndvi'])
@@ -122,6 +122,8 @@ if __name__ == "__main__":
     roofs['geometry'] = roofs.buffer(-0.5)
     roofs_egid = roofs.dissolve(by='EGID', aggfunc='first')
     roofs_egid['area']=roofs_egid.area
+    roofs_egid['EGID']=roofs_egid.index
+    roofs_egid.index.names = ['Index']
 
     logger.info('Extracting greenery from raster with thresholds...')
 
@@ -162,7 +164,7 @@ if __name__ == "__main__":
     green_roofs_egid_att['area_ratio'] = green_roofs_egid_att['area_green']/green_roofs_egid_att['area']
 
     green_roofs_egid_pd = pd.DataFrame(green_roofs_egid.drop(columns='geometry'))
-    roofs_egid_green = roofs_egid.merge(green_roofs_egid_pd,on=['EGID'])
+    roofs_egid_green = roofs_egid.merge(green_roofs_egid_pd,on=['EGID'], how='outer')
     roofs_egid_green['EGID']=roofs_egid_green.index
     roofs_egid_green.index.names = ['Index']
     roofs_egid_green['area_green'] = roofs_egid_green['area_green'].fillna(0)

@@ -55,6 +55,7 @@ if __name__ == "__main__":
     TILE_DELIMITATION=cfg['tile_delimitation']
 
     ROOFS_POLYGONS=cfg['roofs_lr']
+    ROOFS_LAYER=cfg['roofs_layer']
     CHM_LAYER=cfg['chm_layer']
     EGID_TRAIN_TEST=cfg['egid_train_test']
 
@@ -71,16 +72,16 @@ if __name__ == "__main__":
 
     logger.info('Stock path to images and corresponding NDVI and luminosity rasters...')
 
-    #fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
+    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
     tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR, LUM_DIR)
 
     logger.info('Loading roofs/ground truth...')
 
-    roofs=gpd.read_file(ROOFS_POLYGONS)
-    roofs.rename(columns={'class':'cls'}, inplace=True)
-    roofs['geometry'] = roofs.buffer(-0.5)
+    roofs=gpd.read_file(ROOFS_POLYGONS, layer=ROOFS_LAYER)
+    roofs.rename(columns={'class_bd':'cls'}, inplace=True)
+    roofs['geometry'] = roofs.buffer(-0.1)
 
     logger.info('Filtering for overhanging vegetation...')
     CHM = os.path.join(WORKING_DIR, CHM_LAYER)
@@ -91,7 +92,7 @@ if __name__ == "__main__":
 
     logger.info('Defining training and test dataset...')   
     
-    if not os.path.isfile(os.path.join(RESULTS_DIR.split('/')[-2],EGID_TRAIN_TEST)):
+    if not os.path.isfile(os.path.join(RESULTS_DIR,EGID_TRAIN_TEST)):
         roofs_chm['veg_new'].fillna(0, inplace = True)
         lg_train, lg_test = train_test_split(roofs_chm, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs_chm['cls']) 
         lg_train = pd.DataFrame(lg_train)
@@ -99,7 +100,7 @@ if __name__ == "__main__":
         lg_test = pd.DataFrame(lg_test)
         lg_test = lg_test.assign(train=0)
         roofs_chm_split = pd.concat([lg_train, lg_test], ignore_index=True)
-        roofs_chm_split.to_csv(os.path.join(RESULTS_DIR.split('/')[-2],EGID_TRAIN_TEST))
+        roofs_chm_split.to_csv(os.path.join(RESULTS_DIR,EGID_TRAIN_TEST))
 
 
     logger.info('Getting the statistics of roofs...')
@@ -118,7 +119,7 @@ if __name__ == "__main__":
 
             stats_dict_rgb=stats_rgb[0]
             stats_dict_rgb['band']=BANDS[band_num]
-            stats_dict_rgb['veg_new']=roof.veg_new
+            stats_dict_rgb['veg_new']=roof.veg_new_bd
             stats_dict_rgb['class']=roof.cls
             stats_dict_rgb['confidence']=roof.confidence
             stats_dict_rgb['surface_ca']= roof.surface_ca 
@@ -132,7 +133,7 @@ if __name__ == "__main__":
         
         stats_dict_ndvi=stats_ndvi[0]
         stats_dict_ndvi['band']='ndvi'
-        stats_dict_ndvi['veg_new']=roof.veg_new
+        stats_dict_ndvi['veg_new']=roof.veg_new_bd
         stats_dict_ndvi['class']=roof.cls
         stats_dict_ndvi['confidence']=roof.confidence
         stats_dict_ndvi['surface_ca']= roof.surface_ca 
@@ -146,7 +147,7 @@ if __name__ == "__main__":
         
         stats_dict_lum=stats_lum[0]    
         stats_dict_lum['band']='lum'
-        stats_dict_lum['veg_new']=roof.veg_new
+        stats_dict_lum['veg_new']=roof.veg_new_bd
         stats_dict_lum['class']=roof.cls
         stats_dict_lum['confidence']=roof.confidence
         stats_dict_lum['surface_ca']= roof.surface_ca 
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     rounded_stats[cols]=rounded_stats[cols].round(3)
     rounded_stats = rounded_stats.dropna(axis=0,subset=['min','max','mean','std','median'])
     rounded_stats.drop_duplicates(inplace=True)
-    rounded_stats.drop_duplicates(subset=['unID','band'], inplace=True)
+    rounded_stats.drop_duplicates(subset=['EGID','band'], inplace=True)
 
     filepath=os.path.join(RESULTS_DIR,'roof_stats.csv')
     rounded_stats.to_csv(filepath)

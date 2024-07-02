@@ -238,15 +238,15 @@ def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = '
         logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
 
 def log_reg(roofs_lr: gpd.GeoDataFrame, CLS_LR: str, MODEL_ML: str, TRAIN_TEST: str, TH_NDVI: str, TH_LUM: str, WORKING_DIR: str, STAT_DIR: str = None):
-    egid_train_test = pd.read_csv(os.path.join(STAT_DIR.split('/')[-2],TRAIN_TEST))
+    egid_train_test = pd.read_csv(os.path.join(STAT_DIR,TRAIN_TEST))
     egid_train_test = egid_train_test[['EGID', 'train']]
     roofs_lr = roofs_lr.merge(egid_train_test, on='EGID')
 
     if CLS_LR == 'binary':
-        cls = 'veg_new_2'
+        cls = 'veg_new_bd'
         lbl = [0,1]
     elif CLS_LR == 'multi':
-        cls = 'class_2'
+        cls = 'class_bd'
         lbl = ['b','t','s','e','l','i'] 
     else :
         cls = 'cls_agg'
@@ -274,10 +274,10 @@ def log_reg(roofs_lr: gpd.GeoDataFrame, CLS_LR: str, MODEL_ML: str, TRAIN_TEST: 
 
     desc_col = ['min','max','mean','median','std','min_lum','max_lum','mean_lum','median_lum','std_lum',
                 'min_r','max_r','mean_r','median_r','std_r','min_b','max_b','mean_b','median_b','std_b',
-                'min_g','max_g','mean_g','median_g','std_g','min_nir','max_nir','mean_nir','median_nir','std_nir','area_ratio']#,'surface_ca']
+                'min_g','max_g','mean_g','median_g','std_g','min_nir','max_nir','mean_nir','median_nir','std_nir']#,'area_ratio']#,'surface_ca']
 
-    lg_train = roofs_lr.loc[(roofs_lr['train']==1)]
-    lg_test = roofs_lr.loc[(roofs_lr['train']==0)]
+    lg_train = roofs_lr.loc[(roofs_lr['train']==1) ]#& (roofs_lr['class_2']!='b'))]
+    lg_test = roofs_lr.loc[(roofs_lr['train']==0) ]#& (roofs_lr['class_2']!='b'))]
 
     ## Cross-validation ZH-GE (ZH=unID=1-1446)
     # lg_train = roofs_lr.loc[(roofs_lr['unID']>1446)]
@@ -302,7 +302,7 @@ def log_reg(roofs_lr: gpd.GeoDataFrame, CLS_LR: str, MODEL_ML: str, TRAIN_TEST: 
         param = {'penalty':('l1', 'l2'),'solver':('liblinear','newton-cg'), 'C':[1,0.5,0.1],'max_iter':[100,150,200]}
         model = LogisticRegression(class_weight='balanced', random_state=0)
     if MODEL_ML == 'RF': 
-        param = {'n_estimators':[100,150,200],'max_features':[5,6]}
+        param = {'n_estimators':[100,150,200],'max_features':[5,6,7]}
         model = RandomForestClassifier(random_state=0, class_weight='balanced')
 
     clf = GridSearchCV(model, param)
@@ -320,7 +320,7 @@ def log_reg(roofs_lr: gpd.GeoDataFrame, CLS_LR: str, MODEL_ML: str, TRAIN_TEST: 
         test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'veg_new',3:'pred',4:'proba_bare',5:'proba_veg'})
         test_pred_pd['diff'] = abs(test_pred_pd['veg_new']-test_pred_pd['pred'])
     elif CLS_LR == 'multi':
-        test_pred_pd = pd.concat([pd.DataFrame(lg_test[['EGID','class']]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred'})
+        test_pred_pd = pd.concat([pd.DataFrame(lg_test[['EGID','class_2']]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred'})
         test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred',4:'proba_bare',5:'proba_terr',6:'proba_spon',7:'proba_ext',8:'proba_lawn',9:'proba_int'})
         test_pred_pd['diff'] =abs(test_pred_pd['class'] == test_pred_pd['pred'])
     else: 

@@ -12,8 +12,8 @@
 clip_image:
   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
   inputs:
-    ortho_directory: 01_initial/images/rs_tlm/zh/tiles/
-    aoi: 01_initial/aoi/STDL_ZH_AOI.shp
+    ortho_directory: 01_initial/images/rs_tlm/ge/tiles/
+    aoi: 01_initial/aoi/STDL_GE_AOI.shp
     epsg: 'epsg:2056'
     predicate_sjoin: 'intersects'
   outputs: 

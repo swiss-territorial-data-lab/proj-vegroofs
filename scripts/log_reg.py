@@ -49,6 +49,7 @@ if __name__ == "__main__":
     STAT_DIR=cfg['results_directory']
 
     ROOFS_LR=cfg['roofs_lr']
+    ROOFS_LAYER=cfg['roofs_layer']
     CLS_LR=cfg['cls_lr']
     MODEL_ML=cfg['model_ml']
     TRAIN_TEST=cfg['egid_train_test']
@@ -58,5 +59,5 @@ if __name__ == "__main__":
 
     os.chdir(WORKING_DIR)
 
-    roofs_lr = gpd.read_file(ROOFS_LR)
+    roofs_lr = gpd.read_file(ROOFS_LR, layer = ROOFS_LAYER)
     fct_misc.log_reg(roofs_lr,CLS_LR, MODEL_ML, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)
