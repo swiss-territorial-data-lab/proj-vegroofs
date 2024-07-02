@@ -54,12 +54,11 @@ Scripts are run in combination with hard-coded configuration files in the follow
 ## Data preparation
 1. `clip_image.py`: The goal of this script is to clip images with a AOI vector layer. In a first step, the AOI is buffered by 50 m. This vector layer is then used as an input to clip aerial imagery data.
 	* Use clip_image.yaml to specify the inputs data. 
-	* Please change the join option ("predicate") in [`functions/fct_misc.py`](./scripts/functions/fct_misc.py) in Line 83 form "within" to "intersects". 
 2. `calculate_raster.py`: compute NDVI and luminosity rasters. Watch out for the right band in functions `calculate_ndvi` and `calculate_luminosity`. 
 	* Use logReg.yaml to specify the inputs data.
 3. `roof_stats.py`: compute statistics of NDVI and luminostiy values per roofs to help define thresholds. Split the roofs into a training and a test dataset. 
 	* Use logReg.yaml to specify the inputs data.
-	* Please verifiy that the join option ("predicate") in [`functions/fct_misc.py`](./scripts/functions/fct_misc.py) in Line 83 is "intersects".
+	* Please verifiy that the join option ("predicate") in [`functions/fct_misc.py`](./scripts/functions/fct_misc.py) in Line 83 is "within".
 
 ## Logistic regression approach
 The logistic regression approach was developed inspired by Louis-Lucas et al (1) and implemented for the specific project in `functions/fct_misc.py`. 

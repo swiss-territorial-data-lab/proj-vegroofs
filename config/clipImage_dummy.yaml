@@ -1,0 +1,11 @@
+clip_image:
+  working_directory: /proj-vegroofs/data
+  inputs:
+    ortho_directory: 01_initial/images/rs_tlm/tiles/
+    aoi: 01_initial/aoi/STDL_ZH_AOI.shp
+    epsg: 'epsg:2056'
+    predicate_sjoin: 'intersects'
+  outputs: 
+    clip_ortho_directory: 02_intermediate/images/rs_tlm/tiles
+    extent_ortho_directory: 01_initial/images/rs_tlm/extent
+

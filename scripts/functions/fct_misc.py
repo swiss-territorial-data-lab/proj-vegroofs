@@ -17,10 +17,12 @@ from rasterio.features import dataset_features
 import random
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import f1_score
 from sklearn.metrics import recall_score
+from sklearn.inspection import permutation_importance
 
 import csv
 import warnings
@@ -38,7 +40,7 @@ def format_logger(logger):
             level="ERROR")
     return logger
 
-def test_crs(crs1, crs2 = "EPSG:2056"):
+def test_crs(crs1: str, crs2 = "EPSG:2056"):
     '''
     Take the crs-string of two GeoDataframes and compare them. If they are not the same, stop the script.
     '''
@@ -53,7 +55,7 @@ def test_crs(crs1, crs2 = "EPSG:2056"):
         logger.error(e)
         sys.exit(1)
 
-def ensure_dir_exists(dirpath):
+def ensure_dir_exists(dirpath: str):
     '''
     Test if a directory exists. If not, make it.
 
@@ -66,7 +68,7 @@ def ensure_dir_exists(dirpath):
 
     return dirpath
 
-def clip_labels(labels_gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame, fact: int = 1):
+def clip_labels(labels_gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame, predicate_sjoin: str, fact: int = 1):
     '''
     Clip the labels to the tiles
     Copied from the misc functions of the object detector 
@@ -82,7 +84,7 @@ def clip_labels(labels_gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame, fact:
         
     #assert(labels_gdf.crs.name == tiles_gdf.crs.name)
 
-    labels_tiles_sjoined_gdf = gpd.sjoin(labels_gdf, tiles_gdf, how='inner', predicate='within')
+    labels_tiles_sjoined_gdf = gpd.sjoin(labels_gdf, tiles_gdf, how='inner', predicate=predicate_sjoin)
     
     def clip_row(row, fact=fact):
         
@@ -117,12 +119,14 @@ def get_ortho_tiles(tiles: gpd.GeoDataFrame, FOLDER_PATH_IN: str, FOLDER_PATH_ND
 
     rgb_paths=[]
     ndvi_paths=[]
+    lum_paths=[]
 
     for tile_name in tiles['NAME'].values:
-
-        rgb_paths.append(os.path.join(FOLDER_PATH_IN, tile_name + '.tif'))
-        ndvi_paths.append(os.path.join(FOLDER_PATH_NDVI, tile_name + '_NDVI.tif'))
+        if '' in tile_name:     
+            rgb_paths.append(os.path.join(FOLDER_PATH_IN, tile_name + '.tif'))
+            ndvi_paths.append(os.path.join(FOLDER_PATH_NDVI, tile_name + '_NDVI.tif'))
             lum_paths.append(os.path.join(FOLDER_PATH_LUM, tile_name + '_lum.tif'))
+
         else:
             rgb_paths.append('')
             ndvi_paths.append('')  
@@ -137,7 +141,7 @@ def get_ortho_tiles(tiles: gpd.GeoDataFrame, FOLDER_PATH_IN: str, FOLDER_PATH_ND
     return tiles
 
 
-def generate_extent(PATH_IN, PATH_OUT, EPSG):
+def generate_extent(PATH_IN: str, PATH_OUT: str, EPSG: str = 'epsg:2056'):
     '''
     Generate the per-tile oriented extent and the aggregated extent of input tiles. 
 
@@ -233,19 +237,24 @@ def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = '
         
         logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
 
-def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM,WORKING_DIR):
-    egid_train_test = pd.read_csv(TRAIN_TEST)
+def log_reg(roofs_lr: gpd.GeoDataFrame, CLS_LR: str, MODEL_ML: str, TRAIN_TEST: str, TH_NDVI: str, TH_LUM: str, WORKING_DIR: str, STAT_DIR: str = None):
+    egid_train_test = pd.read_csv(os.path.join(STAT_DIR,TRAIN_TEST))
     egid_train_test = egid_train_test[['EGID', 'train']]
     roofs_lr = roofs_lr.merge(egid_train_test, on='EGID')
 
-    # # Alternative 1: output from greenery.py
-    # roofs_lr['veg_new'].fillna(0, inplace = True)
-    # desc_col = ['ndvi_max','area']
-    # desc_col_egid = desc_col.copy()
-    # desc_col_egid = desc_col_egid.append('EGID')
+    if CLS_LR == 'binary':
+        cls = 'veg_new_bd'
+        lbl = [0,1]
+    elif CLS_LR == 'multi':
+        cls = 'class_bd'
+        lbl = ['b','t','s','e','l','i'] 
+    else :
+        cls = 'cls_agg'
+        lbl = ['bt','s','e','li']
+    
 
-    # Alternative 2: read descriptors from roof_stats.py outputs
-    desc = pd.read_csv(os.path.join(WORKING_DIR,'03_results/scratch/roof_stats.csv'))
+    # Read descriptors from roof_stats.py outputs
+    desc = pd.read_csv(os.path.join(WORKING_DIR, STAT_DIR, 'roof_stats.csv'))
     desc_col = ['min','max','mean','median','std']
     desc_col_egid = desc_col[:]
     desc_col_egid.append('EGID')
@@ -263,27 +272,17 @@ def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM,WORKING_DIR):
     desc_tmp = desc[desc['band']=='nir']
     roofs_lr = roofs_lr.merge(desc_tmp[desc_col_egid], on='EGID', suffixes=('', '_nir'))
 
-                                                     
-                                                    
-
-
     desc_col = ['min','max','mean','median','std','min_lum','max_lum','mean_lum','median_lum','std_lum',
                 'min_r','max_r','mean_r','median_r','std_r','min_b','max_b','mean_b','median_b','std_b',
-                'min_g','max_g','mean_g','median_g','std_g','min_nir','max_nir','mean_nir','median_nir','std_nir','surface_ca']
+                'min_g','max_g','mean_g','median_g','std_g','min_nir','max_nir','mean_nir','median_nir','std_nir']#,'area_ratio']#,'surface_ca']
 
-    lg_train = roofs_lr.loc[(roofs_lr['train']==1)]
-    lg_test = roofs_lr.loc[(roofs_lr['train']==0)]
+    lg_train = roofs_lr.loc[(roofs_lr['train']==1) ]#& (roofs_lr['class_2']!='b'))]
+    lg_test = roofs_lr.loc[(roofs_lr['train']==0) ]#& (roofs_lr['class_2']!='b'))]
 
     ## Cross-validation ZH-GE (ZH=unID=1-1446)
     # lg_train = roofs_lr.loc[(roofs_lr['unID']>1446)]
     # lg_test = roofs_lr.loc[(roofs_lr['unID']<=1446)]
 
-
-    ## Decrease the number of training bare samples
-    # lg_train_bare = lg_train[lg_train['veg_new']==0]
-    # lg_train_veg = lg_train[lg_train['veg_new']==1]
-    # lg_train_bare=lg_train_bare[lg_train_bare.index % 7 == 0]
-    # lg_train=pd.concat([pd.DataFrame(lg_train_bare), pd.DataFrame(lg_train_veg)], ignore_index=True)
 
     logger.info('Training the logisitic regression...')
 
@@ -296,24 +295,82 @@ def log_reg(roofs_lr, TRAIN_TEST, TH_NDVI, TH_LUM,WORKING_DIR):
                             # bootstrap=True, oob_score=False, n_jobs=None, random_state=0, verbose=0, warm_start=False, class_weight='balanced', 
                             # ccp_alpha=0.0, max_samples=None, monotonic_cst=None)
     # clf = LogisticRegression(penalty='l2', C=1.0, class_weight='balanced', random_state=0,solver='liblinear', 
-    #                          max_iter=100).fit(lg_train[desc_col], lg_train['veg_new']).fit(lg_train[desc_col], lg_train['veg_new'])
-    clf = RandomForestClassifier(n_estimators=500, random_state=0, class_weight='balanced').fit(lg_train[desc_col], lg_train['veg_new'])
-    test_pred= clf.predict(lg_test[desc_col])
+    #                          max_iter=100).fit(lg_train[desc_col], lg_train[cls]).fit(lg_train[desc_col], lg_train[cls])
+    # clf = RandomForestClassifier(n_estimators=500, random_state=0, class_weight='balanced').fit(lg_train[desc_col], lg_train[cls])
+    
+    if MODEL_ML == 'LR':
+        param = {'penalty':('l1', 'l2'),'solver':('liblinear','newton-cg'), 'C':[1,0.5,0.1],'max_iter':[100,150,200]}
+        model = LogisticRegression(class_weight='balanced', random_state=0)
+    if MODEL_ML == 'RF': 
+        param = {'n_estimators':[100,150,200],'max_features':[5,6,7]}
+        model = RandomForestClassifier(random_state=0, class_weight='balanced')
+
+    clf = GridSearchCV(model, param)
+    clf.fit(lg_train[desc_col], lg_train[cls])
+    pd_fit=pd.DataFrame(clf.cv_results_)
+    pd_fit.to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'fits_'+CLS_LR+'_'+MODEL_ML+'.csv')
 
     logger.info('Testing and metric computation...')
 
-    cf = confusion_matrix(lg_test['veg_new'],test_pred, labels= [0,1]) #labels=['b','t','s','e','l','i']
-    tn, fp, fn, tp = confusion_matrix(lg_test['veg_new'],test_pred).ravel()
+    test_pred= clf.best_estimator_.predict(lg_test[desc_col])
+    test_proba = clf.best_estimator_.predict_proba(lg_test[desc_col])
 
-    if not os.path.isfile('metrics.csv'):
-        with open('metrics.csv', 'w', newline='') as file:
+    if CLS_LR == 'binary':
+        test_pred_pd = pd.concat([pd.DataFrame(lg_test[['EGID','veg_new']]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'veg_new',3:'pred'})
+        test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'veg_new',3:'pred',4:'proba_bare',5:'proba_veg'})
+        test_pred_pd['diff'] = abs(test_pred_pd['veg_new']-test_pred_pd['pred'])
+    elif CLS_LR == 'multi':
+        test_pred_pd = pd.concat([pd.DataFrame(lg_test[['EGID','class_2']]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred'})
+        test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred',4:'proba_bare',5:'proba_terr',6:'proba_spon',7:'proba_ext',8:'proba_lawn',9:'proba_int'})
+        test_pred_pd['diff'] =abs(test_pred_pd['class'] == test_pred_pd['pred'])
+    else: 
+        test_pred_pd = pd.concat([pd.DataFrame(lg_test[['EGID','cls_agg']]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred'})
+        test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred',4:'proba_bt',5:'proba_s',6:'proba_e',7:'proba_li'})
+        test_pred_pd['diff'] =abs(test_pred_pd['class'] == test_pred_pd['pred'])
+
+    test_pred_pd.to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'pred_'+CLS_LR+'_'+MODEL_ML+'.csv')
+    cf = confusion_matrix(lg_test[cls],test_pred, labels=lbl)
+
+    if CLS_LR == 'binary':
+        tn, fp, fn, tp = confusion_matrix(lg_test[cls],test_pred).ravel()
+
+        if MODEL_ML == 'RF':
+            (pd.DataFrame(clf.best_estimator_.feature_names_in_,clf.best_estimator_.feature_importances_)).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_LR+'_'+MODEL_ML+'.csv')
+
+        if MODEL_ML == 'LR':
+            model_fi = permutation_importance(clf.best_estimator_,lg_train[desc_col], lg_train[cls])
+            pd.DataFrame(clf.best_estimator_.feature_names_in_,model_fi['importances_mean']).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_LR+'_'+MODEL_ML+'.csv')
+
+        if not os.path.isfile(os.path.join(WORKING_DIR, STAT_DIR,'metrics.csv')):
+            with open(os.path.join(WORKING_DIR, STAT_DIR,'metrics.csv'), 'w', newline='') as file:
+                writer = csv.writer(file)
+                row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp','accuracy','recall','f1-score','model']
+                writer.writerow(row)
+
+        row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(lg_test[cls],test_pred),recall_score(lg_test[cls],test_pred),f1_score(lg_test[cls],test_pred),str(clf.best_estimator_).replace(' ', '').replace('\t', '').replace('\n', '')]
+        with open(os.path.join(WORKING_DIR, STAT_DIR,'metrics.csv'), 'a', newline='') as file:
             writer = csv.writer(file)
-            row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp','accuracy','recall','f1-score','model']
             writer.writerow(row)
 
-    row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(lg_test['veg_new'],test_pred),recall_score(lg_test['veg_new'],test_pred),f1_score(lg_test['veg_new'],test_pred),str(clf)]
-    with open('metrics.csv', 'a', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(row)
+    else:
+        (pd.DataFrame(cf)).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'cf_'+CLS_LR+'_'+MODEL_ML+'.csv')
 
-    print('BIS !')
+        if MODEL_ML == 'RF':
+            (pd.DataFrame(clf.best_estimator_.feature_names_in_,clf.best_estimator_.feature_importances_)).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_LR+'_'+MODEL_ML+'.csv')
+
+        if MODEL_ML == 'LR':
+            model_fi = permutation_importance(clf.best_estimator_,lg_train[desc_col], lg_train[cls])
+            pd.DataFrame(clf.best_estimator_.feature_names_in_,model_fi['importances_mean']).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_LR+'_'+MODEL_ML+'.csv')
+
+        if not os.path.isfile(os.path.join(WORKING_DIR, STAT_DIR,'metrics_multi.csv')):
+            with open(os.path.join(WORKING_DIR, STAT_DIR,'metrics_multi.csv'), 'w', newline='') as file:
+                writer = csv.writer(file)
+                row = ['th_ndvi','th_lum','accuracy','classes','model']
+                writer.writerow(row)
+
+        row = [TH_NDVI,TH_LUM, accuracy_score(lg_test[cls],test_pred),CLS_LR, str(clf.best_estimator_).replace(' ', '').replace('\t', '').replace('\n', '')]
+        with open(os.path.join(WORKING_DIR, STAT_DIR,'metrics_multi.csv'), 'a', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(row)       
+
+    logger.info('BIS !')
