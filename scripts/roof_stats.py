@@ -10,8 +10,12 @@ import statistics
 from rasterstats import zonal_stats
 from sklearn.model_selection import train_test_split
 
+import matplotlib 
+
 import csv
 from csv import writer
+
+import plotly
 
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc
@@ -37,7 +41,7 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['dev']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
 
     logger.info('Defining constants...')
 
@@ -50,9 +54,12 @@ if __name__ == "__main__":
 
     TILE_DELIMITATION=cfg['tile_delimitation']
 
-    ROOFS_POLYGONS=cfg['roofs_gt']
+    ROOFS_POLYGONS=cfg['roofs_lr']
     ROOFS_LAYER=cfg['roofs_layer']
+    CHM_LAYER=cfg['chm_layer']
+    EGID_TRAIN_TEST=cfg['egid_train_test']
 
+    PREDICATE=cfg['predicate_sjoin']
     EPSG=cfg['epsg']
 
     os.chdir(WORKING_DIR)
@@ -68,45 +75,37 @@ if __name__ == "__main__":
     fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
-    # tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR)
-
-    # tiles['path_lum']=[os.path.join(LUM_DIR, tile_name + '_lum.tif') for tile_name in tiles.NAME.to_numpy()]
-    # tiles['path_NDVI']=[os.path.join(NDVI_DIR, tile_name + '_NDVI.tif') for tile_name in tiles.NAME.to_numpy()]
-
-
     tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR, LUM_DIR)
 
     logger.info('Loading roofs/ground truth...')
 
-    roofs=gpd.read_file(ROOFS_POLYGONS)
-    # roofs.drop(columns=['essence', 'diam_tronc'], inplace=True)
-    roofs.rename(columns={'class':'cls'}, inplace=True)
-    roofs['geometry'] = roofs.buffer(-0.5)
+    roofs=gpd.read_file(ROOFS_POLYGONS, layer=ROOFS_LAYER)
+    roofs.rename(columns={'class_bd':'cls'}, inplace=True)
+    roofs['geometry'] = roofs.buffer(-0.1)
+
+    logger.info('Filtering for overhanging vegetation...')
+    CHM = os.path.join(WORKING_DIR, CHM_LAYER)
+    chm=gpd.read_file(CHM)
+    chm['geometry'] = chm.buffer(1)
+    roofs_chm=gpd.overlay(roofs, chm, how='difference')
 
 
     logger.info('Defining training and test dataset...')   
     
-    roofs['veg_new'].fillna(0, inplace = True)
-    lg_train, lg_test = train_test_split(roofs, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs['cls']) 
-    lg_train = pd.DataFrame(lg_train)
-    lg_train = lg_train.assign(train=1)
-    lg_test = pd.DataFrame(lg_test)
-    lg_test = lg_test.assign(train=0)
-    roofs_split = pd.concat([lg_train, lg_test], ignore_index=True)
-    roofs_split.to_csv(os.path.join(RESULTS_DIR.split('/')[-2],'EGID_train_test.csv'))
+    if not os.path.isfile(os.path.join(RESULTS_DIR,EGID_TRAIN_TEST)):
+        roofs_chm['veg_new'].fillna(0, inplace = True)
+        lg_train, lg_test = train_test_split(roofs_chm, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs_chm['cls']) 
+        lg_train = pd.DataFrame(lg_train)
+        lg_train = lg_train.assign(train=1)
+        lg_test = pd.DataFrame(lg_test)
+        lg_test = lg_test.assign(train=0)
+        roofs_chm_split = pd.concat([lg_train, lg_test], ignore_index=True)
+        roofs_chm_split.to_csv(os.path.join(RESULTS_DIR,EGID_TRAIN_TEST))
 
 
     logger.info('Getting the statistics of roofs...')
 
-    clipped_roofs=fct_misc.clip_labels(labels_gdf=roofs, tiles_gdf=tiles)
-    # clipped_roofs = clipped_roofs.loc[(clipped_roofs['veg_new']==0)]
-
-    # # hovering vegetation filter
-    # TREE = "C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data/02_intermediate/autres/tlm3d_bb_einzelbaum_buf5m_aoi.gpkg"
-    # trees=gpd.read_file(TREE, layer='merge')
-    # trees.geometry=trees.geometry.buffer(2)
-    # clipped_roofs=gpd.overlay(clipped_roofs, trees, how='difference')
-    # clipped_roofs.to_file('test.gpkg')
+    clipped_roofs=fct_misc.clip_labels(labels_gdf=roofs_chm, tiles_gdf=tiles, predicate_sjoin=PREDICATE)
                                 
     roofs_stats=pd.DataFrame()                                                              
     calculated_stats=['min', 'max', 'mean', 'median', 'std']
@@ -115,12 +114,12 @@ if __name__ == "__main__":
     for roof in tqdm(clipped_roofs.itertuples(),
                     desc='Extracting statistics over clipped_roofs', total=clipped_roofs.shape[0]):    
        
-       for band_num in BANDS.keys():
+        for band_num in BANDS.keys():
             stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats,band=band_num, nodata=0)
 
             stats_dict_rgb=stats_rgb[0]
             stats_dict_rgb['band']=BANDS[band_num]
-            stats_dict_rgb['veg_new']=roof.veg_new
+            stats_dict_rgb['veg_new']=roof.veg_new_bd
             stats_dict_rgb['class']=roof.cls
             stats_dict_rgb['confidence']=roof.confidence
             stats_dict_rgb['surface_ca']= roof.surface_ca 
@@ -133,7 +132,7 @@ if __name__ == "__main__":
         
         stats_dict_ndvi=stats_ndvi[0]
         stats_dict_ndvi['band']='ndvi'
-        stats_dict_ndvi['veg_new']=roof.veg_new
+        stats_dict_ndvi['veg_new']=roof.veg_new_bd
         stats_dict_ndvi['class']=roof.cls
         stats_dict_ndvi['confidence']=roof.confidence
         stats_dict_ndvi['surface_ca']= roof.surface_ca 
@@ -147,7 +146,7 @@ if __name__ == "__main__":
         
         stats_dict_lum=stats_lum[0]    
         stats_dict_lum['band']='lum'
-        stats_dict_lum['veg_new']=roof.veg_new
+        stats_dict_lum['veg_new']=roof.veg_new_bd
         stats_dict_lum['class']=roof.cls
         stats_dict_lum['confidence']=roof.confidence
         stats_dict_lum['surface_ca']= roof.surface_ca 
@@ -161,7 +160,7 @@ if __name__ == "__main__":
     rounded_stats[cols]=rounded_stats[cols].round(3)
     rounded_stats = rounded_stats.dropna(axis=0,subset=['min','max','mean','std','median'])
     rounded_stats.drop_duplicates(inplace=True)
-    rounded_stats.drop_duplicates(subset=['unID','band'], inplace=True)
+    rounded_stats.drop_duplicates(subset=['EGID','band'], inplace=True)
 
     filepath=os.path.join(RESULTS_DIR,'roof_stats.csv')
     rounded_stats.to_csv(filepath)
@@ -214,14 +213,14 @@ if __name__ == "__main__":
         band_stats=roofs_stats[roofs_stats['band']==band]
 
         logger.info('... making some boxplots...')
-        bxplt_beeches=band_stats[calculated_stats + ['class']].plot.box(
+        bxplt_roofs=band_stats[calculated_stats + ['class']].plot.box(
                                     by='class',
                                     title=f'Statistics distribution for roofs per band {band}',
                                     figsize=(18, 5),
                                     grid=True,
         )
 
-        fig=bxplt_beeches[0].get_figure()
+        fig=bxplt_roofs[0].get_figure()
         filepath=os.path.join(im_path, f'boxplot_stats_band_{band}.jpg')
         fig.savefig(filepath, bbox_inches='tight')
         written_files.append(filepath)

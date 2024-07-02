@@ -1,20 +1,22 @@
-clip_image:
-  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
-  inputs:
-    ortho_directory: 01_initial/images/scratch/tiles/
-    aoi: 01_initial/aoi/STDL_ZH_AOI.shp
-    epsg: 'epsg:2056'
-  outputs: 
-    clip_ortho_directory: 02_intermediate/images/scratch/tiles
-    extent_ortho_directory: 01_initial/images/scratch/extent
-
 # clip_image:
 #   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
 #   inputs:
-#     ortho_directory: 01_initial/images/tlm/tiles/
+#     ortho_directory: 01_initial/images/rs_tlm/tiles/
 #     aoi: 01_initial/aoi/STDL_ZH_AOI.shp
 #     epsg: 'epsg:2056'
+#     predicate_sjoin: 'intersects'
 #   outputs: 
-#     clip_ortho_directory: 02_intermediate/images/tlm/tiles
-#     extent_ortho_directory: 01_initial/images/tlm/extent
+#     clip_ortho_directory: 02_intermediate/images/rs_tlm/tiles
+#     extent_ortho_directory: 01_initial/images/rs_tlm/extent
+
+clip_image:
+  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
+  inputs:
+    ortho_directory: 01_initial/images/rs_tlm/ge/tiles/
+    aoi: 01_initial/aoi/STDL_GE_AOI.shp
+    epsg: 'epsg:2056'
+    predicate_sjoin: 'intersects'
+  outputs: 
+    clip_ortho_directory: 02_intermediate/images/rs_tlm/tiles
+    extent_ortho_directory: 01_initial/images/rs_tlm/extent
 

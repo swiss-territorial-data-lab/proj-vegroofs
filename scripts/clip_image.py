@@ -38,6 +38,7 @@ if __name__ == "__main__":
     INPUTS=cfg['inputs']
     ORTHO_DIR=INPUTS['ortho_directory']
     AOI=INPUTS['aoi']
+    PREDICATE=INPUTS['predicate_sjoin']
     EPSG=INPUTS['epsg']
 
     OUTPUTS=cfg['outputs']
@@ -61,9 +62,7 @@ if __name__ == "__main__":
     fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
-    aoi_clipped=fct_misc.clip_labels(labels_gdf=aoi, tiles_gdf=tiles)
-    # keep only elements that are non-empty
-    aoi_clipped=aoi_clipped[~aoi_clipped.is_empty]
+    aoi_clipped=fct_misc.clip_labels(labels_gdf=aoi, tiles_gdf=tiles, predicate_sjoin=PREDICATE)
     aoi_clipped=aoi_clipped.reset_index(drop=True)
 
     i=1
