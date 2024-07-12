@@ -22,11 +22,12 @@ No specific requirements.
 ├── config                        # config files
 ├── data                          # data to process, see addendum
 ├───scripts
-│   │   calculate_raster.py       # compute the NDVI and luminosity raster of the orthoimage tiles 
-│   |   clip_image.py             # clip the orthoimages for the aoi extent. 
-│   |   greenery.py               # main workflow, greenery detection and logistic regression
-│   |   log_reg.py                # workflow for logistic regression only (ex. from intermediate results of greenery.py)
-│   |   roof_stats.py             # scripts to study and prepare the ground truth layer
+│   │   calculate_raster.py       # computes the NDVI and luminosity rasters of the orthoimage tiles 
+│   |   clip_image.py             # clips the orthoimages for the aoi extent 
+│   |   greenery.py               # potential greenery detection by applying threshold on NDVI and luminosity
+│   |   infere_ml.py               # inferes with the trainde machine learning algorithms
+│   |   train_ml.py                # trains and tests machine learning algorithms (logistic regression and random forest)
+│   |   roof_stats.py             # computes the descriptors for the machine learning algorithms
 │   |   
 │   └───functions                 # set of functions used in python scripts
 └── setup                         # requirements for environment installation
@@ -37,38 +38,37 @@ No specific requirements.
 The following abbreviations are used:
 
 * **AOI**: area of interest
-
 * **GT**: ground truth
-
 * **LR**: logistic regression
+* **RF**: random forest
 
 Scripts are run in combination with hard-coded configuration files in the following order: 
 
 1. `clip_image.py`
 2. `calculate_raster.py`
-3. `roof_stats.py`
-4. `greenery.py`
-5. `log_reg.py`
+3. `greenery.py`
+4. `roof_stats.py`
+5. `train_ml.py`
+6. `infere_ml.py`
 
 
 ## Data preparation
 1. `clip_image.py`: The goal of this script is to clip images with a AOI vector layer. In a first step, the AOI is buffered by 50 m. This vector layer is then used as an input to clip aerial imagery data.
-	* Use clip_image.yaml to specify the inputs data. 
-2. `calculate_raster.py`: compute NDVI and luminosity rasters. Watch out for the right band in functions `calculate_ndvi` and `calculate_luminosity`. 
-	* Use logReg.yaml to specify the inputs data.
-3. `roof_stats.py`: compute statistics of NDVI and luminostiy values per roofs to help define thresholds. Split the roofs into a training and a test dataset. 
-	* Use logReg.yaml to specify the inputs data.
-	* Please verifiy that the join option ("predicate") in [`functions/fct_misc.py`](./scripts/functions/fct_misc.py) in Line 83 is "within".
+	* Use `clip_image.yaml` to specify the inputs data. 
+2. `calculate_raster.py`: computes NDVI and luminosity rasters. Watch out for the right band numbering in functions `calculate_ndvi` and `calculate_luminosity`. 
+	* Use `logReg.yaml` to specify the inputs data.
+3. `greenery.py`: identifies potential greenery on roofs based on NDVI and luminosity values, and compute potential greenery ratio per roofs. 
+	* Use `logReg.yaml` to specify the inputs data.
+4. `roof_stats.py`: computes statistics of NDVI and luminostiy values per roofs. Splits the roofs into a training and a test dataset. 
+	* Use`logReg.yaml` to specify the inputs data.
 
-## Logistic regression approach
-The logistic regression approach was developed inspired by Louis-Lucas et al (1) and implemented for the specific project in `functions/fct_misc.py`. 
+## Machine learning
+The machine learning approach was inspired by Louis-Lucas et al. (1) and adapted for the specificity of the project. In between, the machine learning algorithms and the descriptors used became rather different. 
 
-4. `greenery.py`: identify greenery on roofs based on NDVI values and luminosity to make a selection of roofs before training a logistic regression. 
-	* Use logReg.yaml to specify the inputs data.
-
-5. `log_reg`: focuses on the logistic regression part of the pipeline.
-	* Use logReg.yaml to specify the inputs data.
-
+5. `train_ml.py`: trains a logistic regression and a random forest and evaluates them on a test dataset. 
+	* Use `logReg.yaml` to specify the inputs data.
+6. `infer_ml.py`: infers for descriptors computed with `roof_stats.py`. 
+	* Use `logReg.yaml` to specify the inputs data.
 
 
 ## Addendum
@@ -81,7 +81,7 @@ The full documentation of the project is available on the [STDL's technical webs
 #### Ground truth 
 
 The ground truth consists of ...
-* Labelling of ground truth by the beneficiaries (Februar 2024)
+* Labelling of ground truth by the beneficiaries (February 2024)
 
 
 #### Folder structure 

@@ -3,23 +3,25 @@ hydra:
     dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 prod: 
-prod: 
   working_directory: /proj-vegroofs/data
   ortho_directory: 02_intermediate/images/scratch/tiles
   tile_delimitation: 02_intermediate/images/scratch/extent/
   ndvi_directory: 02_intermediate/images/scratch/ndvi
   lum_directory: 02_intermediate/images/scratch/lum
-  roofs_gt: 02_intermediate/gt/gt_tot.gpkg
-  roofs_layer: gt_to_label
+  roofs_layer: 02_intermediate/gt/gt_tot.gpkg
+  roofs_layer: 
+  gt: True
+  green_tag: 'veg_new'
+  green_cls: 'class'
   chm_layer: 02_intermediate/autres/CHM_AOI.gpkg
   results_directory: 03_results/scratch_gt/
   egid_train_test: egid_train_test_gt.csv
-  roofs_lr: 02_intermediate/th/2024-06-14/10-10-21/0_765_gt_tot_green.shp
   predicate_sjoin: 'within'
   th_ndvi: 0 # no thresholding -1
   th_lum: 765 # no thresholding 765
-  cls_lr: 'multi' # 'multi' 'multi_aggreg'
-  model_ml: 'LR' # 'LR' 'RF'
+  cls_ml: 'multi' # 'binary' or 'multi' 
+  model_ml: 'LR' # 'LR'or 'RF'
+  trained_model_dir: 03_results/scratch_ratio/
   epsg: 'epsg:2056'
 
 

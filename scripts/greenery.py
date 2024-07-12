@@ -32,30 +32,28 @@ logger=fct_misc.format_logger(logger)
 
 def my_app(cfg : DictConfig) -> None:
     green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'green_roofs.shp')) 
-    roofs_egid_green.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'gt_tot_green.shp')) 
+    roofs_egid_green.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roofs_green.shp')) 
 
-    logger.info('Greenery saved with hydra...')
+    logger.info(f"Greenery and roofs saved with hydra in {hydra.core.hydra_config.HydraConfig.get().runtime.output_dir}")
 
 def do_greenery(tile,roofs):
-    #lum_dataset = rasterio.open(tile.path_lum)
+    lum_dataset = rasterio.open(tile.path_lum)
     ndvi_dataset = rasterio.open(tile.path_NDVI)
 
-    #lum_band = lum_dataset.read(1)
+    lum_band = lum_dataset.read(1)
     ndvi_band = ndvi_dataset.read(1)
 
     with rasterio.open(tile.path_NDVI) as src:
         out_image, out_transform = rasterio.mask.mask(src, shapes_roof, nodata=-9999, all_touched=True, crop=False)
 
-        mask = (ndvi_band >= TH_NDVI) & (out_image[0]!=-9999) #& (lum_band <= TH_LUM)
+        mask = (ndvi_band >= TH_NDVI) & (out_image[0]!=-9999) & (lum_band <= TH_LUM)
 
         geoms = ((shape(s), v) for s, v in shapes(out_image[0], mask, transform=src.transform))
         gdf=gpd.GeoDataFrame(geoms, columns=['geometry', 'ndvi'])
         gdf.set_crs(crs=src.crs, inplace=True)
 
         green_roofs = gpd.sjoin(gdf, roofs, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
-        # green_roofs.to_file(os.path.join(OUTPUT_DIR,'green_roofs.shp')) 
 
-        # filter for roof with at least 5 m2 and 3 m height by EGID and threshold on max NDVI to get rid of hovering vegetation
         green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
         green_roofs_egid['EGID']=green_roofs_egid.index
         green_roofs_egid.index.names = ['Index']
@@ -63,22 +61,20 @@ def do_greenery(tile,roofs):
         return green_roofs_egid
 
 if __name__ == "__main__":
-     
-     
+         
     logger.info('Starting...')
 
     logger.info('Parsing the config file...')
 
     parser = argparse.ArgumentParser(
-        description="The script detects the greenery on roofs")
+        description="The script detects potential greenery on roofs.")
     parser.add_argument('-cfg', '--config_file', type=str, 
         help='Framework configuration file', 
         default="config/logReg.yaml")
     args = parser.parse_args()
 
-    # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['dev']
 
     logger.info('Defining constants...')
 
@@ -91,8 +87,11 @@ if __name__ == "__main__":
 
     TILE_DELIMITATION=cfg['tile_delimitation']
 
-    ROOFS_POLYGONS=cfg['roofs_gt']
+    ROOFS_POLYGONS=cfg['roofs_file']
     ROOFS_LAYER=cfg['roofs_layer']
+    GT = cfg['gt']
+    GREEN_TAG=cfg['green_tag']
+    GREEN_CLS=cfg['green_cls']
     CHM_LAYER=cfg['chm_layer']
 
     TH_NDVI=cfg['th_ndvi']
@@ -104,9 +103,9 @@ if __name__ == "__main__":
     _=fct_misc.ensure_dir_exists(RESULTS_DIR)
 
 
-    logger.info('Linking path of images and corresponding NDVI and luminosity rasters...')
+    logger.info('Linking path of images to corresponding NDVI and luminosity rasters...')
 
-    #fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
+    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
     tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR, LUM_DIR)
@@ -117,22 +116,23 @@ if __name__ == "__main__":
 
     logger.info('Loading roofs/ground truth...')
 
-    roofs=gpd.read_file(ROOFS_POLYGONS)
-    roofs.rename(columns={'class':'cls'}, inplace=True)
+    roofs=gpd.read_file(ROOFS_POLYGONS, layer=ROOFS_LAYER)
+    if GT: 
+        roofs.rename(columns={GREEN_CLS:'cls'}, inplace=True)
     roofs['geometry'] = roofs.buffer(-0.5)
     roofs_egid = roofs.dissolve(by='EGID', aggfunc='first')
     roofs_egid['area']=roofs_egid.area
     roofs_egid['EGID']=roofs_egid.index
     roofs_egid.index.names = ['Index']
 
-    logger.info('Extracting greenery from raster with thresholds...')
+    logger.info('Extracting greenery from rasters with thresholds...')
 
     with fiona.open(ROOFS_POLYGONS, "r") as shapefile:
         shapes_roof = [feature["geometry"] for feature in shapefile]
 
-    logger.info("Multithreading with joblib for statistics over roofs: ")
+    logger.info("Multithreading with joblib for statistics over roofs... ")
     num_cores = multiprocessing.cpu_count()
-    logger.info(f"starting job on {num_cores} cores.")  
+    logger.info(f"Starting job on {num_cores} cores...")  
 
     with tqdm_joblib(desc="Parallel greenery detection", total=tiles.shape[0]) as progress_bar:
         green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
@@ -172,16 +172,19 @@ if __name__ == "__main__":
 
     my_app()
    
+    if GT:
 
-    logger.info('Outputting detected potential green roofs number...')
+        logger.info('Outputting detected potential green roofs number...')
 
-    if not os.path.isfile(os.path.join(RESULTS_DIR,'recap_green.csv')):
-        with open(os.path.join(RESULTS_DIR,'recap_green.csv'), 'w', newline='') as file:
+        ROOF_COUNTS_CSV = 'recap_green.csv'
+
+        if not os.path.isfile(os.path.join(RESULTS_DIR,ROOF_COUNTS_CSV)):
+            with open(os.path.join(RESULTS_DIR,ROOF_COUNTS_CSV), 'w', newline='') as file:
+                writer = csv.writer(file)
+                row = ['TH_NDVI', 'TH_LUM', 'roofs_bare', 'roofs_green', 'green_roofs_bare', 'green_roofs_green']
+                writer.writerow(row)
+
+        row = [TH_NDVI, TH_LUM, sum(roofs_egid[GREEN_TAG]==0),sum(roofs_egid[GREEN_TAG]==1),sum(green_roofs_egid_att[GREEN_TAG]==0),sum(green_roofs_egid_att[GREEN_TAG]==1)]
+        with open(os.path.join(RESULTS_DIR,ROOF_COUNTS_CSV), 'a',newline='') as file:
             writer = csv.writer(file)
-            row = ['TH_NDVI', 'TH_LUM', 'roofs_bare', 'roofs_green', 'green_roofs_bare', 'green_roofs_green']
             writer.writerow(row)
-
-    row = [TH_NDVI, TH_LUM, sum(roofs_egid['veg_new']==0),sum(roofs_egid['veg_new']==1),sum(green_roofs_egid_att['veg_new']==0),sum(green_roofs_egid_att['veg_new']==1)]
-    with open(os.path.join(RESULTS_DIR,'recap_green.csv'), 'a',newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(row)

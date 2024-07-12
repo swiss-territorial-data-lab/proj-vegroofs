@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['dev']
 
     logger.info('Defining constants...')
 
@@ -115,4 +115,4 @@ if __name__ == "__main__":
         lum_tile_path=os.path.join(LUM_DIR, tile.split('/')[-1].replace('.tif', '_lum.tif'))
         _ = calculate_lum(tile, path=lum_tile_path)
 
-    logger.success(f'The files were written in the folder {NDVI_DIR} and {LUM_DIR}.')
+    logger.success(f'The files were written in the folders {NDVI_DIR} and {LUM_DIR}.')
