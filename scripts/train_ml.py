@@ -33,14 +33,15 @@ def compute_metrics(test_gt: gpd.GeoDataFrame, test_pred: np.ndarray, test_proba
 
     if CLS_ML == 'binary':
         test_pred_pd = pd.concat([pd.DataFrame(test_gt[['EGID',cls]]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'veg_new',3:'pred'})
-        test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'veg_new',3:'pred',4:'proba_bare',5:'proba_veg'})
+        test_pred_pd = pd.concat([test_pred_pd[['EGID','veg_new','pred']],pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {0:'EGID', 1:'veg_new',2:'pred',3:'proba_bare',4:'proba_veg'})
         test_pred_pd['diff'] = abs(test_pred_pd['veg_new']==test_pred_pd['pred'])
     elif CLS_ML == 'multi':
         test_pred_pd = pd.concat([pd.DataFrame(test_gt[['EGID',cls]]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred'})
         test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred',4:'proba_bare',5:'proba_terr',6:'proba_spon',7:'proba_ext',8:'proba_lawn',9:'proba_int'})
         test_pred_pd['diff'] =abs(test_pred_pd['class'] == test_pred_pd['pred'])
 
-    test_pred_pd.to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'pred_'+CLS_ML+'_'+MODEL_ML+'.csv')
+    test_gt_pred=test_gt.merge(test_pred_pd, on="EGID")
+    test_gt_pred.to_file(os.path.join(WORKING_DIR, STAT_DIR)+'pred_'+CLS_ML+'_'+MODEL_ML+'.gpkg')
     cf = confusion_matrix(test_gt[cls],test_pred, labels=lbl)
 
     if CLS_ML == 'binary':
@@ -109,12 +110,13 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str, CLS_ML:
                 'min_r','max_r','mean_r','median_r','std_r','min_b','max_b','mean_b','median_b','std_b',
                 'min_g','max_g','mean_g','median_g','std_g','min_nir','max_nir','mean_nir','median_nir','std_nir'] #,'area_ratio']
 
+    roofs_gt = roofs_gt.loc[((roofs_gt['mean']<0.05) & (roofs_gt[cls]==0)) | (roofs_gt[cls]==1)]
     ml_train = roofs_gt.loc[(roofs_gt['train']==1) ]
-    ml_test = roofs_gt.loc[(roofs_gt['train']==0) ]
+    ml_test = roofs_gt.loc[(roofs_gt['train']==0)]
 
-    ## Cross-validation ZH-GE (ZH=unID=1-1446)
-    # ml_train = roofs_gt.loc[(roofs_gt['unID']>1446)]
-    # ml_test = roofs_gt.loc[(roofs_gt['unID']<=1446)]
+    # # Cross-validation ZH-GE (ZH=unID=1-1446)
+    # ml_train = roofs_gt.loc[(roofs_gt['unID']<=1446)]
+    # ml_test = roofs_gt.loc[(roofs_gt['unID']>1446)]
 
 
     logger.info('Training the logisitic regression...')
@@ -122,15 +124,15 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str, CLS_ML:
     random.seed(10)
     
     if MODEL_ML == 'LR':
-        param = {'penalty':('l1', 'l2'),'solver':('liblinear','newton-cg'), 'C':[1,0.5,0.1],'max_iter':[100,150,200]}
+        param = {'penalty':('l1', 'l2'),'solver':('liblinear','newton-cg'), 'C':[1,0.5,0.1],'max_iter':[200, 500, 800]}
         model = LogisticRegression(class_weight='balanced', random_state=0)
     if MODEL_ML == 'RF': 
-        param = {'n_estimators':[100,150,200],'max_features':[5,6,7]}
+        param = {'n_estimators':[200,500, 800],'max_features':[4,5.6,7]}
         model = RandomForestClassifier(random_state=0, class_weight='balanced')
 
     clf = GridSearchCV(model, param)
     clf.fit(ml_train[desc_col], ml_train[cls])
-    with open(os.path.join(WORKING_DIR, STAT_DIR,'model.pkl'),'wb') as f:
+    with open(os.path.join(WORKING_DIR, STAT_DIR,f"model_{CLS_ML}_{MODEL_ML}.pkl"),'wb') as f:
         pickle.dump(clf,f)
 
     pd_fit=pd.DataFrame(clf.cv_results_)

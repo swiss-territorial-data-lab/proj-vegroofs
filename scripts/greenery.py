@@ -2,6 +2,7 @@ import os, sys
 import yaml
 import argparse
 from loguru import logger
+
 from joblib import Parallel, delayed
 import multiprocessing
 from threading import Lock
@@ -159,14 +160,10 @@ if __name__ == "__main__":
 
     roofs_egid_pd = pd.DataFrame(roofs_egid.drop(columns='geometry'))
     green_roofs_egid_att = green_roofs_egid.merge(roofs_egid_pd,on=['EGID'])
-    green_roofs_egid_att['EGID']=green_roofs_egid_att.index
-    green_roofs_egid_att.index.names = ['Index']
     green_roofs_egid_att['area_ratio'] = green_roofs_egid_att['area_green']/green_roofs_egid_att['area']
 
     green_roofs_egid_pd = pd.DataFrame(green_roofs_egid.drop(columns='geometry'))
     roofs_egid_green = roofs_egid.merge(green_roofs_egid_pd,on=['EGID'], how='outer')
-    roofs_egid_green['EGID']=roofs_egid_green.index
-    roofs_egid_green.index.names = ['Index']
     roofs_egid_green['area_green'] = roofs_egid_green['area_green'].fillna(0)
     roofs_egid_green['area_ratio'] = roofs_egid_green['area_green']/roofs_egid_green['area']
 

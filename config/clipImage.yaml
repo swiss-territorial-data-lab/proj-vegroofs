@@ -10,10 +10,10 @@
 #     extent_ortho_directory: 01_initial/images/rs_tlm/extent
 
 clip_image:
-  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
+  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
   inputs:
     ortho_directory: 01_initial/images/infer/tiles/
-    aoi: 01_initial/aoi/aoi_inf.gpkg
+    aoi: 01_initial/images/infer/extent/extent.shp
     epsg: 'epsg:2056'
     predicate_sjoin: 'intersects'
   outputs: 

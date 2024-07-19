@@ -48,6 +48,8 @@ if __name__ == "__main__":
     os.chdir(WORKING_DIR)
     fct_misc.ensure_dir_exists(OUTPUT_DIR)
 
+    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
+    tiles=gpd.read_file(TILE_DELIMITATION)
 
     logger.info('Reading AOI geometries...')
 
@@ -58,9 +60,6 @@ if __name__ == "__main__":
     for index, row in aoi.iterrows():
         row = row.copy()
         aoi.loc[index, 'geometry'] = row.geometry.buffer(50,join_style=2)
-
-    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
-    tiles=gpd.read_file(TILE_DELIMITATION)
 
     aoi_clipped=fct_misc.clip_labels(labels_gdf=aoi, tiles_gdf=tiles, predicate_sjoin=PREDICATE)
     aoi_clipped=aoi_clipped.reset_index(drop=True)

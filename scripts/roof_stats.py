@@ -13,6 +13,11 @@ from sklearn.model_selection import train_test_split
 from math import isnan
 from itertools import filterfalse      
 
+from joblib import Parallel, delayed
+import multiprocessing
+from threading import Lock
+from tqdm_joblib import tqdm_joblib
+
 import matplotlib 
 import plotly
 
@@ -20,10 +25,60 @@ import csv
 from csv import writer
 
 sys.path.insert(1, 'scripts')
-import functions.fct_misc as fct_misc              
+import functions.fct_misc as fct_misc           
+
+lock = Lock()
 
 logger=fct_misc.format_logger(logger)
 
+def do_stats(roof):
+    roofs_stats_list=pd.DataFrame()
+    for band_num in BANDS.keys():
+        stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats,band=band_num, nodata=0)
+
+        stats_dict_rgb=stats_rgb[0]
+        stats_dict_rgb['band']=BANDS[band_num]
+        if GT: 
+            stats_dict_rgb[GREEN_TAG]=roof.green_tag
+            stats_dict_rgb['class']=roof.cls
+            stats_dict_rgb['confidence']=roof.confidence
+            stats_dict_rgb['surface_ca']= roof.surface_ca 
+            stats_dict_rgb['unID']= roof.unID
+        stats_dict_rgb['EGID']= roof.EGID                                            
+        
+        roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_rgb, index=[0])], ignore_index=True)
+        
+    stats_ndvi=zonal_stats(roof.geometry, roof.path_NDVI, stats=calculated_stats,
+        band=1, nodata=-9999)
+    
+    stats_dict_ndvi=stats_ndvi[0]
+    stats_dict_ndvi['band']='ndvi'
+    if GT:
+        stats_dict_ndvi[GREEN_TAG]=roof.green_tag
+        stats_dict_ndvi['class']=roof.cls
+        stats_dict_ndvi['confidence']=roof.confidence
+        stats_dict_ndvi['surface_ca']= roof.surface_ca 
+        stats_dict_ndvi['unID']= roof.unID
+    stats_dict_ndvi['EGID']= roof.EGID
+
+    roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_ndvi, index=[0])], ignore_index=True)
+
+    stats_lum=zonal_stats(roof.geometry, roof.path_lum, stats=calculated_stats,
+        band=1, nodata=0)
+    
+    stats_dict_lum=stats_lum[0]    
+    stats_dict_lum['band']='lum'
+    if GT: 
+        stats_dict_lum[GREEN_TAG]=roof.green_tag
+        stats_dict_lum['class']=roof.cls
+        stats_dict_lum['confidence']=roof.confidence
+        stats_dict_lum['surface_ca']= roof.surface_ca 
+        stats_dict_lum['unID']= roof.unID
+    stats_dict_lum['EGID']= roof.EGID             
+
+    roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_lum, index=[0])], ignore_index=True)
+
+    return roofs_stats_list
 
 if __name__ == "__main__":
 
@@ -96,7 +151,7 @@ if __name__ == "__main__":
     if GT:
         logger.info('Defining training and test dataset...')   
         if not os.path.isfile(os.path.join(RESULTS_DIR,EGID_TRAIN_TEST)):
-            roofs_chm[GREEN_TAG].fillna(0, inplace = True)
+            roofs_chm['green_tag'].fillna(0, inplace = True)
             lg_train, lg_test = train_test_split(roofs_chm, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs_chm['cls']) 
             lg_train = pd.DataFrame(lg_train)
             lg_train = lg_train.assign(train=1)
@@ -114,52 +169,17 @@ if __name__ == "__main__":
     calculated_stats=['min', 'max', 'mean', 'median', 'std']
     BANDS={1: 'nir', 2: 'red', 3: 'green', 4: 'blue'}
 
-    for roof in tqdm(clipped_roofs.itertuples(),
-                    desc='Extracting statistics over clipped_roofs', total=clipped_roofs.shape[0]):    
-       
-        for band_num in BANDS.keys():
-            stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats,band=band_num, nodata=0)
+    print("Multithreading with joblib for statistics over beeches: ")
+    num_cores = multiprocessing.cpu_count()
+    print ("starting job on {} cores.".format(num_cores))
 
-            stats_dict_rgb=stats_rgb[0]
-            stats_dict_rgb['band']=BANDS[band_num]
-            if GT: 
-                stats_dict_rgb[GREEN_TAG]=roof.green_tag
-                stats_dict_rgb['class']=roof.cls
-                stats_dict_rgb['confidence']=roof.confidence
-                stats_dict_rgb['surface_ca']= roof.surface_ca 
-                stats_dict_rgb['unID']= roof.unID
-            stats_dict_rgb['EGID']= roof.EGID                                            
-            
-            roofs_stats=pd.concat([roofs_stats, pd.DataFrame(stats_dict_rgb, index=[0])], ignore_index=True)
-        stats_ndvi=zonal_stats(roof.geometry, roof.path_NDVI, stats=calculated_stats,
-            band=1, nodata=-9999)
-        
-        stats_dict_ndvi=stats_ndvi[0]
-        stats_dict_ndvi['band']='ndvi'
-        if GT:
-            stats_dict_ndvi[GREEN_TAG]=roof.green_tag
-            stats_dict_ndvi['class']=roof.cls
-            stats_dict_ndvi['confidence']=roof.confidence
-            stats_dict_ndvi['surface_ca']= roof.surface_ca 
-            stats_dict_ndvi['unID']= roof.unID
-        stats_dict_ndvi['EGID']= roof.EGID
+    with tqdm_joblib(desc="Extracting statistics over clipped_roofs", total=clipped_roofs.shape[0]) as progress_bar:
+        roofs_stats_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_stats)(roof) for roof in clipped_roofs.itertuples())
 
-        roofs_stats=pd.concat([roofs_stats, pd.DataFrame(stats_dict_ndvi, index=[0])], ignore_index=True)
-
-        stats_lum=zonal_stats(roof.geometry, roof.path_lum, stats=calculated_stats,
-            band=1, nodata=0)
-        
-        stats_dict_lum=stats_lum[0]    
-        stats_dict_lum['band']='lum'
-        if GT: 
-            stats_dict_lum[GREEN_TAG]=roof.green_tag
-            stats_dict_lum['class']=roof.cls
-            stats_dict_lum['confidence']=roof.confidence
-            stats_dict_lum['surface_ca']= roof.surface_ca 
-            stats_dict_lum['unID']= roof.unID
-        stats_dict_lum['EGID']= roof.EGID                                                
-
-        roofs_stats=pd.concat([roofs_stats, pd.DataFrame(stats_dict_lum, index=[0])], ignore_index=True)
+    roofs_stats=pd.DataFrame()
+    for row in roofs_stats_list:
+        roofs_stats = pd.concat([roofs_stats, row])
+    logger.info('... finished')
 
     rounded_stats=roofs_stats.copy()
     cols=['min', 'max', 'median', 'mean', 'std']

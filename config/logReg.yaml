@@ -3,25 +3,25 @@ hydra:
     dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 dev:
-  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
-  ortho_directory: 02_intermediate/images/scratch/tiles
-  tile_delimitation: 02_intermediate/images/scratch/extent/
-  ndvi_directory: 02_intermediate/images/scratch/ndvi
-  lum_directory: 02_intermediate/images/scratch/lum
-  roofs_file: 01_initial/gt/gt_test.gpkg
+  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
+  ortho_directory: 02_intermediate/images/infer/tiles
+  tile_delimitation: 02_intermediate/images/infer/extent/
+  ndvi_directory: 02_intermediate/images/infer/ndvi
+  lum_directory: 02_intermediate/images/infer/lum
+  roofs_file: 02_intermediate/gt/inf_roofs.gpkg #
   roofs_layer: 
   gt: True
-  green_tag: 'veg_new'
-  green_cls: 'class'
-  chm_layer: 02_intermediate/autres/CHM_AOI.gpkg
-  results_directory: 03_results/scratch_ratio/
+  green_tag: 'veg_new_3'
+  green_cls: 'class_3'
+  chm_layer: 02_intermediate/autres/CHM_AOI_inf.gpkg
+  results_directory: 03_results/infer_greenery/
   egid_train_test: egid_train_test_gt.csv
   predicate_sjoin: 'within'
-  th_ndvi: -1 # no thresholding -1
-  th_lum: 210000 # no thresholding 765 or 210000
+  th_ndvi: 0 # no thresholding -1
+  th_lum: 500 # no thresholding 765 or 210000
   cls_ml: 'binary' # 'binary' 'multi' 'multi_aggreg'
-  model_ml: 'LR' # 'LR' 'RF'
-  trained_model_dir: 03_results/scratch_ratio/
+  model_ml: 'RF' # 'LR' 'RF'
+  trained_model_dir: 03_results/scratch_greenery/
   epsg: 'epsg:2056'
 
 

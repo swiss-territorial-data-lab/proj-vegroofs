@@ -16,7 +16,7 @@ import functions.fct_misc as fct_misc
 logger=fct_misc.format_logger(logger)
 
 def infer_ml(roofs: gpd.GeoDataFrame, CLS_ML: str, MODEL_ML: str, WORKING_DIR: str, PICKLE_DIR: str, STAT_DIR: str = None, ):
-    with open(os.path.join(WORKING_DIR, PICKLE_DIR,'model.pkl'), 'rb') as f:
+    with open(os.path.join(WORKING_DIR, PICKLE_DIR,f"model_{CLS_ML}_{MODEL_ML}.pkl"), 'rb') as f:
         clf = pickle.load(f)   
 
     # Read descriptors from roof_stats.py outputs
@@ -47,11 +47,14 @@ def infer_ml(roofs: gpd.GeoDataFrame, CLS_ML: str, MODEL_ML: str, WORKING_DIR: s
     roofs_pred= clf.best_estimator_.predict(roofs[desc_col])
     roofs_proba = clf.best_estimator_.predict_proba(roofs[desc_col])   
 
-    if CLS_ML == 'binary':
-        roofs_pred_pd = pd.concat([pd.DataFrame(roofs_pred),pd.DataFrame(roofs_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'pred',3:'proba_bare',4:'proba_veg'})
+    roofs=roofs.drop(columns=desc_col)
+    roofs_pred_pd = pd.concat([pd.DataFrame(roofs[['EGID']]).reset_index(),pd.DataFrame(roofs_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'pred'})
+    if CLS_ML == 'binary':   
+        roofs_pred_pd = pd.concat([roofs_pred_pd[['EGID','pred']],pd.DataFrame(roofs_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {0:'EGID', 1:'pred',2:'proba_bare',3:'proba_veg'})
     elif CLS_ML == 'multi':
-        roofs_pred_pd = pd.concat([pd.DataFrame(roofs_pred),pd.DataFrame(roofs_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID',2:'pred',3:'proba_bare',4:'proba_terr',5:'proba_spon',6:'proba_ext',7:'proba_lawn',8:'proba_int'})
-    roofs_pred_pd.to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'pred_'+CLS_ML+'_'+MODEL_ML+'.csv')
+        roofs_pred_pd = pd.concat([roofs_pred_pd[['EGID','pred']],pd.DataFrame(roofs_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {0:'EGID',1:'pred',2:'proba_bare',3:'proba_terr',4:'proba_spon',5:'proba_ext',6:'proba_lawn',7:'proba_int'})
+    roofs=roofs.merge(roofs_pred_pd, on="EGID")
+    roofs.to_file(os.path.join(WORKING_DIR, STAT_DIR+'inf_'+CLS_ML+'_'+MODEL_ML+'.gpkg'))
 
 if __name__ == "__main__":
 
@@ -78,8 +81,6 @@ if __name__ == "__main__":
 
     ROOFS=cfg['roofs_file']
     ROOFS_LAYER=cfg['roofs_layer']
-    GREEN_TAG=cfg['green_tag']
-    GREEN_CLS=cfg['green_cls']
     CLS_ML=cfg['cls_ml']
     MODEL_ML=cfg['model_ml']
     PICKLE_DIR=cfg['trained_model_dir']
@@ -88,3 +89,5 @@ if __name__ == "__main__":
 
     roofs = gpd.read_file(ROOFS, layer = ROOFS_LAYER)
     infer_ml(roofs,CLS_ML, MODEL_ML, WORKING_DIR, PICKLE_DIR, STAT_DIR)
+
+    logger.info('Inferences finished.')
