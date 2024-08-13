@@ -54,6 +54,9 @@ def infer_ml(roofs: gpd.GeoDataFrame, CLS_ML: str, MODEL_ML: str, WORKING_DIR: s
     elif CLS_ML == 'multi':
         roofs_pred_pd = pd.concat([roofs_pred_pd[['EGID','pred']],pd.DataFrame(roofs_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {0:'EGID',1:'pred',2:'proba_bare',3:'proba_terr',4:'proba_spon',5:'proba_ext',6:'proba_lawn',7:'proba_int'})
     roofs=roofs.merge(roofs_pred_pd, on="EGID")
+    if 'fid' in roofs.columns:
+        roofs['fid'] = roofs['fid'].astype(int)
+
     roofs.to_file(os.path.join(WORKING_DIR, STAT_DIR+'inf_'+CLS_ML+'_'+MODEL_ML+'.gpkg'))
 
 if __name__ == "__main__":
