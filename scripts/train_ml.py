@@ -117,7 +117,6 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str, CLS_ML:
     # ml_train = roofs_gt.loc[(roofs_gt['unID']<=1446)]
     # ml_test = roofs_gt.loc[(roofs_gt['unID']>1446)]
 
-    logger.info(MODEL_ML)
     logger.info(f"Training model: {'logisitic regression' if MODEL_ML == 'LR' else 'random forest'}...")
     random.seed(10)
     
