@@ -15,7 +15,6 @@ import pandas as pd
 import geopandas as gpd
 import fiona
 import rasterio
-from rasterio.mask import mask
 from rasterio.features import shapes
 from shapely.geometry import shape
 
