@@ -34,7 +34,7 @@ logger=fct_misc.format_logger(logger)
 def do_stats(roof):
     roofs_stats_list=pd.DataFrame()
     for band_num in BANDS.keys():
-        stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats,band=band_num, nodata=0)
+        stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats, band=band_num, nodata=0)
 
         stats_dict_rgb=stats_rgb[0]
         stats_dict_rgb['band']=BANDS[band_num]
@@ -42,9 +42,9 @@ def do_stats(roof):
             stats_dict_rgb[GREEN_TAG]=roof.green_tag
             stats_dict_rgb['class']=roof.cls
             stats_dict_rgb['confidence']=roof.confidence
-            stats_dict_rgb['surface_ca']= roof.surface_ca 
-            stats_dict_rgb['unID']= roof.unID
-        stats_dict_rgb['EGID']= roof.EGID                                            
+            stats_dict_rgb['surface_ca']=roof.surface_ca 
+            stats_dict_rgb['unID']=roof.unID
+        stats_dict_rgb['EGID']=roof.EGID                                            
         
         roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_rgb, index=[0])], ignore_index=True)
         
@@ -57,9 +57,9 @@ def do_stats(roof):
         stats_dict_ndvi[GREEN_TAG]=roof.green_tag
         stats_dict_ndvi['class']=roof.cls
         stats_dict_ndvi['confidence']=roof.confidence
-        stats_dict_ndvi['surface_ca']= roof.surface_ca 
-        stats_dict_ndvi['unID']= roof.unID
-    stats_dict_ndvi['EGID']= roof.EGID
+        stats_dict_ndvi['surface_ca']=roof.surface_ca 
+        stats_dict_ndvi['unID']=roof.unID
+    stats_dict_ndvi['EGID']=roof.EGID
 
     roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_ndvi, index=[0])], ignore_index=True)
 
@@ -72,9 +72,9 @@ def do_stats(roof):
         stats_dict_lum[GREEN_TAG]=roof.green_tag
         stats_dict_lum['class']=roof.cls
         stats_dict_lum['confidence']=roof.confidence
-        stats_dict_lum['surface_ca']= roof.surface_ca 
-        stats_dict_lum['unID']= roof.unID
-    stats_dict_lum['EGID']= roof.EGID             
+        stats_dict_lum['surface_ca']=roof.surface_ca 
+        stats_dict_lum['unID']=roof.unID
+    stats_dict_lum['EGID']=roof.EGID             
 
     roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_lum, index=[0])], ignore_index=True)
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
     ROOFS_POLYGONS=cfg['roofs_file']
     ROOFS_LAYER=cfg['roofs_layer']
-    GT = cfg['gt']
+    GT=cfg['gt']
     GREEN_TAG=cfg['green_tag']
     GREEN_CLS=cfg['green_cls']
     CHM_LAYER=cfg['chm_layer']
@@ -234,6 +234,7 @@ if __name__ == "__main__":
         roofs_stats.loc[roofs_stats['class']=='e', 'class']='4. e'
         roofs_stats.loc[roofs_stats['class']=='l', 'class']='5. l'
         roofs_stats.loc[roofs_stats['class']=='i', 'class']='6. i'
+        roofs_stats = roofs_stats.reset_index().drop('index', axis=1)
 
         for band in roofs_stats['band'].unique():
             logger.info(f'For band {band}...')
