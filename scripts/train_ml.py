@@ -19,7 +19,6 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import recall_score
 
 import csv
-from csv import writer
 
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc              
@@ -118,9 +117,8 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str, CLS_ML:
     # ml_train = roofs_gt.loc[(roofs_gt['unID']<=1446)]
     # ml_test = roofs_gt.loc[(roofs_gt['unID']>1446)]
 
-
-    logger.info('Training the logisitic regression...')
-
+    logger.info(MODEL_ML)
+    logger.info(f"Training model: {'logisitic regression' if MODEL_ML == 'LR' else 'random forest'}...")
     random.seed(10)
     
     if MODEL_ML == 'LR':
@@ -197,4 +195,7 @@ if __name__ == "__main__":
     os.chdir(WORKING_DIR)
 
     roofs_gt = gpd.read_file(ROOFS, layer = ROOFS_LAYER)
+    if 'fid' in roofs_gt.columns:
+        roofs_gt['fid'] = roofs_gt['fid'].astype(int)
+
     train_ml(roofs_gt, GREEN_TAG, GREEN_CLS, CLS_ML, MODEL_ML, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)
