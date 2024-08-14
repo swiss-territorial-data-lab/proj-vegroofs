@@ -52,7 +52,7 @@ def do_greenery(tile,roofs):
         gdf=gpd.GeoDataFrame(geoms, columns=['geometry', 'ndvi'])
         gdf.set_crs(crs=src.crs, inplace=True)
 
-        green_roofs = gpd.sjoin(gdf, roofs, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
+        green_roofs = gpd.sjoin(gdf, roofs, how='inner', predicate='within', lsuffix='left', rsuffix='right')
 
         green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
         green_roofs_egid['EGID']=green_roofs_egid.index
