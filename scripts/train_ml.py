@@ -194,7 +194,5 @@ if __name__ == "__main__":
     os.chdir(WORKING_DIR)
 
     roofs_gt = gpd.read_file(ROOFS, layer = ROOFS_LAYER)
-    if 'fid' in roofs_gt.columns:
-        roofs_gt['fid'] = roofs_gt['fid'].astype(int)
 
     train_ml(roofs_gt, GREEN_TAG, GREEN_CLS, CLS_ML, MODEL_ML, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)
