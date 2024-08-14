@@ -55,11 +55,11 @@ Scripts are run in combination with hard-coded configuration files in the follow
 
 #### Ground truth 
 
-The ground truth consists of a vector layer with the geometry of buildings from the land survey. Each building has a unique identifier, a label `green_tag` "green or not" and a class of vegetation type `green_cls` : bare, terrace, spontaneous, extensive, lawn or intensive. 
+The ground truth consists of a vector layer with the geometry of buildings from the land survey. Each building has a unique identifier, a label `green_tag` "green or not" and a class of vegetation type `green_cls` : bare (b), terrace (t), spontaneous (s), extensive (e), lawn (l) or intensive (i).
 
 #### Images
 
-Images should be NRGB. If the band order is different, please edit `calculate_raster.py`. 
+Images should be NRGB. If the band order is different, please edit `calculate_raster.py` and adjust the band ordering in `roof_stats.py`.
 
 
 ## Data preparation
@@ -83,11 +83,10 @@ Images should be NRGB. If the band order is different, please edit `calculate_ra
       * green_cls: # attribute field for vegetation classes
       * chm_layer: # canopy height vector layer for masking of overhanging vegetation
       * results_directory: 
-      * predicate_sjoin: 'within' 
       * th_ndvi:  # no thresholding -1
       * th_lum:  # no thresholding 765 or 210000
       * epsg:
-4. `roof_stats.py`: computes statistics of NDVI and luminostiy values per roofs. Splits the roofs into a training and a test dataset. 
+4. `roof_stats.py`: computes statistics of NDVI and luminosity values per roofs. Splits the roofs into a training and a test dataset. 
 	* Use`logReg.yaml` to specify the inputs data.
       * ortho_directory: 
       * tile_delimitation: # directory for tile extent computed in this script
@@ -101,12 +100,11 @@ Images should be NRGB. If the band order is different, please edit `calculate_ra
       * chm_layer: 
       * results_directory: 
       * egid_train_test: # split of the GT in train and test datasets 
-      * predicate_sjoin: 'within' 
       * epsg:
 ## Machine learning
 The machine learning approach was inspired by Louis-Lucas et al. (1) and adapted for the specificity of the project. In between, the machine learning algorithms and the descriptors used became rather different. 
 
-5. `train_ml.py`: trains a logistic regression and a random forest and evaluates them on a test dataset. 
+1. `train_ml.py`: trains a logistic regression and a random forest and evaluates them on a test dataset. 
 	* Use `logReg.yaml` to specify the inputs data.
          * working_directory:
          * roofs_file: 
@@ -121,7 +119,7 @@ The machine learning approach was inspired by Louis-Lucas et al. (1) and adapted
          * cls_ml: # 'binary' 'multi'
          * model_ml: # 'LR' 'RF'
          * trained_model_dir: # where to save the trained model for reuse
-6. `infer_ml.py`: infers for descriptors computed with `roof_stats.py`. 
+2. `infer_ml.py`: infers for descriptors computed with `roof_stats.py`. 
 	* Use `logReg.yaml` to specify the inputs data.
          * working_directory: 
          * roofs_file: 
@@ -157,7 +155,7 @@ Here following a proposition of data structure.
             └── ndvi              # NDVI tiles computed from NirRGB tiles
    └── 03_results                 # results of the workflows (training and test partition)
       └── image_gt                # roof stats, boxplots, machine learning outputs on GT
-      └── image_inf               # roof stats and machine learning outpus for inferences
+      └── image_inf               # roof stats and machine learning outputs for inferences
 ```
 
 ### References

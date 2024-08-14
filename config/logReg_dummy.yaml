@@ -16,7 +16,6 @@ prod:
   chm_layer: 02_intermediate/autres/CHM_AOI.gpkg
   results_directory: 03_results/scratch_gt/
   egid_train_test: egid_train_test_gt.csv
-  predicate_sjoin: 'within'
   th_ndvi: 0 # no thresholding -1
   th_lum: 765 # no thresholding 765
   cls_ml: 'multi' # 'binary' or 'multi' 

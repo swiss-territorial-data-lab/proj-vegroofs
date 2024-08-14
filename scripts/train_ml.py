@@ -19,7 +19,6 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import recall_score
 
 import csv
-from csv import writer
 
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc              
@@ -27,17 +26,40 @@ import functions.fct_misc as fct_misc
 logger=fct_misc.format_logger(logger)
 
 
-def compute_metrics(test_gt: gpd.GeoDataFrame, test_pred: np.ndarray, test_proba: np.ndarray, cls: str, lbl: str, CLS_ML: str, MODEL_ML: str, clf: GridSearchCV , TH_NDVI: str, TH_LUM: str, WORKING_DIR: str, STAT_DIR: str = None):
+def compute_metrics(test_gt: gpd.GeoDataFrame, test_pred: np.ndarray, test_proba: np.ndarray,
+                    cls: str, lbl: str, CLS_ML: str, MODEL_ML: str, clf: GridSearchCV ,
+                    TH_NDVI: str, TH_LUM: str, WORKING_DIR: str, STAT_DIR: str = None):
  
     logger.info('Testing and metric computation...')
 
     if CLS_ML == 'binary':
-        test_pred_pd = pd.concat([pd.DataFrame(test_gt[['EGID',cls]]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'veg_new',3:'pred'})
-        test_pred_pd = pd.concat([test_pred_pd[['EGID','veg_new','pred']],pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {0:'EGID', 1:'veg_new',2:'pred',3:'proba_bare',4:'proba_veg'})
+        test_pred_pd = pd.concat([pd.DataFrame(test_gt[['EGID',cls]]).reset_index(),
+                                  pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False
+                                  ).rename(columns = {1:'EGID', 2:'veg_new',3:'pred'})
+        test_pred_pd = pd.concat([test_pred_pd[['EGID','veg_new','pred']],
+                                  pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False
+                                  ).rename(
+                                      columns = {0: 'EGID',
+                                                 1: 'veg_new',
+                                                 2: 'pred',
+                                                 3: 'proba_bare',
+                                                 4: 'proba_veg'})
         test_pred_pd['diff'] = abs(test_pred_pd['veg_new']==test_pred_pd['pred'])
     elif CLS_ML == 'multi':
-        test_pred_pd = pd.concat([pd.DataFrame(test_gt[['EGID',cls]]).reset_index(),pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred'})
-        test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],axis=1,ignore_index=True, sort=False).rename(columns = {1:'EGID', 2:'class',3:'pred',4:'proba_bare',5:'proba_terr',6:'proba_spon',7:'proba_ext',8:'proba_lawn',9:'proba_int'})
+        test_pred_pd = pd.concat([pd.DataFrame(test_gt[['EGID',cls]]).reset_index(),
+                                  pd.DataFrame(test_pred)], axis=1,ignore_index=True, sort=False
+                                  ).rename(columns = {1:'EGID', 2:'class',3:'pred'})
+        test_pred_pd = pd.concat([test_pred_pd,pd.DataFrame(test_proba)],
+                                 axis=1,ignore_index=True, sort=False
+                                 ).rename(columns = {1: 'EGID',
+                                                     2: 'class',
+                                                     3: 'pred',
+                                                     4: 'proba_bare',
+                                                     5: 'proba_terr',
+                                                     6: 'proba_spon',
+                                                     7: 'proba_ext',
+                                                     8: 'proba_lawn',
+                                                     9: 'proba_int'})
         test_pred_pd['diff'] =abs(test_pred_pd['class'] == test_pred_pd['pred'])
 
     test_gt_pred=test_gt.merge(test_pred_pd, on="EGID")
@@ -54,7 +76,10 @@ def compute_metrics(test_gt: gpd.GeoDataFrame, test_pred: np.ndarray, test_proba
                 row = ['th_ndvi','th_lum','tn', 'fp', 'fn', 'tp','accuracy','recall','f1-score','model']
                 writer.writerow(row)
 
-        row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(test_gt[cls],test_pred),recall_score(test_gt[cls],test_pred),f1_score(test_gt[cls],test_pred),str(clf.best_estimator_).replace(' ', '').replace('\t', '').replace('\n', '')]
+        row = [TH_NDVI,TH_LUM, tn, fp, fn, tp, accuracy_score(test_gt[cls],test_pred),
+               recall_score(test_gt[cls],test_pred),
+               f1_score(test_gt[cls],test_pred),
+               str(clf.best_estimator_).replace(' ', '').replace('\t', '').replace('\n', '')]
         with open(os.path.join(WORKING_DIR, STAT_DIR,METRICS_CSV), 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(row)
@@ -69,12 +94,15 @@ def compute_metrics(test_gt: gpd.GeoDataFrame, test_pred: np.ndarray, test_proba
                 row = ['th_ndvi','th_lum','accuracy','classes','model']
                 writer.writerow(row)
 
-        row = [TH_NDVI,TH_LUM, accuracy_score(test_gt[cls],test_pred),CLS_ML, str(clf.best_estimator_).replace(' ', '').replace('\t', '').replace('\n', '')]
+        row = [TH_NDVI,TH_LUM, accuracy_score(test_gt[cls],test_pred), CLS_ML,
+               str(clf.best_estimator_).replace(' ', '').replace('\t', '').replace('\n', '')]
         with open(os.path.join(WORKING_DIR, STAT_DIR,METRICS_CSV), 'a', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(row)
 
-def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str, CLS_ML: str, MODEL_ML: str, TRAIN_TEST: str, TH_NDVI: str, TH_LUM: str, WORKING_DIR: str, STAT_DIR: str = None):
+def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str,
+             CLS_ML: str, MODEL_ML: str, TRAIN_TEST: str, TH_NDVI: str,
+             TH_LUM: str, WORKING_DIR: str, STAT_DIR: str = None):
     egid_train_test = pd.read_csv(os.path.join(STAT_DIR,TRAIN_TEST))
     egid_train_test = egid_train_test[['EGID', 'train']]
     roofs_gt = roofs_gt.merge(egid_train_test, on='EGID')
@@ -118,13 +146,13 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str, CLS_ML:
     # ml_train = roofs_gt.loc[(roofs_gt['unID']<=1446)]
     # ml_test = roofs_gt.loc[(roofs_gt['unID']>1446)]
 
-
-    logger.info('Training the logisitic regression...')
-
+    logger.info(f"Training model:
+                {'logisitic regression' if MODEL_ML == 'LR' else 'random forest'}...")
     random.seed(10)
     
     if MODEL_ML == 'LR':
-        param = {'penalty':('l1', 'l2'),'solver':('liblinear','newton-cg'), 'C':[1,0.5,0.1],'max_iter':[200, 500, 800]}
+        param = {'penalty':('l1', 'l2'),'solver':('liblinear','newton-cg'),
+                 'C':[1,0.5,0.1],'max_iter':[200, 500, 800]}
         model = LogisticRegression(class_weight='balanced', random_state=0)
     if MODEL_ML == 'RF': 
         param = {'n_estimators':[200,500, 800],'max_features':[4,5.6,7]}
@@ -143,21 +171,26 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str, CLS_ML:
 
     if CLS_ML == 'binary':
         if MODEL_ML == 'RF':
-            (pd.DataFrame(clf.best_estimator_.feature_names_in_,clf.best_estimator_.feature_importances_)).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
+            (pd.DataFrame(clf.best_estimator_.feature_names_in_,clf.best_estimator_.feature_importances_)
+             ).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
 
         if MODEL_ML == 'LR':
             model_fi = permutation_importance(clf.best_estimator_,ml_train[desc_col], ml_train[cls])
-            pd.DataFrame(clf.best_estimator_.feature_names_in_,model_fi['importances_mean']).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
+            pd.DataFrame(clf.best_estimator_.feature_names_in_,model_fi['importances_mean']
+                         ).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
     else:
         if MODEL_ML == 'RF':
-            (pd.DataFrame(clf.best_estimator_.feature_names_in_,clf.best_estimator_.feature_importances_)).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
+            (pd.DataFrame(clf.best_estimator_.feature_names_in_,clf.best_estimator_.feature_importances_)
+             ).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
 
         if MODEL_ML == 'LR':
             model_fi = permutation_importance(clf.best_estimator_,ml_train[desc_col], ml_train[cls])
-            pd.DataFrame(clf.best_estimator_.feature_names_in_,model_fi['importances_mean']).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
+            pd.DataFrame(clf.best_estimator_.feature_names_in_,model_fi['importances_mean']
+                         ).to_csv(os.path.join(WORKING_DIR, STAT_DIR)+'imp_'+CLS_ML+'_'+MODEL_ML+'.csv')
 
 
-    compute_metrics(ml_test, test_pred, test_proba, cls, lbl, CLS_ML, MODEL_ML, clf,TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)
+    compute_metrics(ml_test, test_pred, test_proba, cls, lbl, CLS_ML, MODEL_ML,
+                    clf,TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)
 
 
 if __name__ == "__main__":
@@ -197,4 +230,5 @@ if __name__ == "__main__":
     os.chdir(WORKING_DIR)
 
     roofs_gt = gpd.read_file(ROOFS, layer = ROOFS_LAYER)
-    train_ml(roofs_gt, GREEN_TAG, GREEN_CLS, CLS_ML, MODEL_ML, TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)
+
+    train_ml(roofs_gt, GREEN_TAG, GREEN_CLS, CLS_ML, MODEL_ML,TRAIN_TEST, TH_NDVI, TH_LUM, WORKING_DIR, STAT_DIR)

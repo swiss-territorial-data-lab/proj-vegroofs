@@ -34,7 +34,7 @@ logger=fct_misc.format_logger(logger)
 def do_stats(roof):
     roofs_stats_list=pd.DataFrame()
     for band_num in BANDS.keys():
-        stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats,band=band_num, nodata=0)
+        stats_rgb=zonal_stats(roof.geometry, roof.path_RGB, stats=calculated_stats, band=band_num, nodata=0)
 
         stats_dict_rgb=stats_rgb[0]
         stats_dict_rgb['band']=BANDS[band_num]
@@ -42,9 +42,9 @@ def do_stats(roof):
             stats_dict_rgb[GREEN_TAG]=roof.green_tag
             stats_dict_rgb['class']=roof.cls
             stats_dict_rgb['confidence']=roof.confidence
-            stats_dict_rgb['surface_ca']= roof.surface_ca 
-            stats_dict_rgb['unID']= roof.unID
-        stats_dict_rgb['EGID']= roof.EGID                                            
+            stats_dict_rgb['surface_ca']=roof.surface_ca 
+            stats_dict_rgb['unID']=roof.unID
+        stats_dict_rgb['EGID']=roof.EGID                                            
         
         roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_rgb, index=[0])], ignore_index=True)
         
@@ -57,9 +57,9 @@ def do_stats(roof):
         stats_dict_ndvi[GREEN_TAG]=roof.green_tag
         stats_dict_ndvi['class']=roof.cls
         stats_dict_ndvi['confidence']=roof.confidence
-        stats_dict_ndvi['surface_ca']= roof.surface_ca 
-        stats_dict_ndvi['unID']= roof.unID
-    stats_dict_ndvi['EGID']= roof.EGID
+        stats_dict_ndvi['surface_ca']=roof.surface_ca 
+        stats_dict_ndvi['unID']=roof.unID
+    stats_dict_ndvi['EGID']=roof.EGID
 
     roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_ndvi, index=[0])], ignore_index=True)
 
@@ -72,9 +72,9 @@ def do_stats(roof):
         stats_dict_lum[GREEN_TAG]=roof.green_tag
         stats_dict_lum['class']=roof.cls
         stats_dict_lum['confidence']=roof.confidence
-        stats_dict_lum['surface_ca']= roof.surface_ca 
-        stats_dict_lum['unID']= roof.unID
-    stats_dict_lum['EGID']= roof.EGID             
+        stats_dict_lum['surface_ca']=roof.surface_ca 
+        stats_dict_lum['unID']=roof.unID
+    stats_dict_lum['EGID']=roof.EGID             
 
     roofs_stats_list=pd.concat([roofs_stats_list, pd.DataFrame(stats_dict_lum, index=[0])], ignore_index=True)
 
@@ -109,13 +109,12 @@ if __name__ == "__main__":
 
     ROOFS_POLYGONS=cfg['roofs_file']
     ROOFS_LAYER=cfg['roofs_layer']
-    GT = cfg['gt']
+    GT=cfg['gt']
     GREEN_TAG=cfg['green_tag']
     GREEN_CLS=cfg['green_cls']
     CHM_LAYER=cfg['chm_layer']
     EGID_TRAIN_TEST=cfg['egid_train_test']
 
-    PREDICATE=cfg['predicate_sjoin']
     EPSG=cfg['epsg']
 
     os.chdir(WORKING_DIR)
@@ -152,7 +151,8 @@ if __name__ == "__main__":
         logger.info('Defining training and test dataset...')   
         if not os.path.isfile(os.path.join(RESULTS_DIR,EGID_TRAIN_TEST)):
             roofs_chm['green_tag'].fillna(0, inplace = True)
-            lg_train, lg_test = train_test_split(roofs_chm, test_size=0.3, train_size=0.7, random_state=0, shuffle=True, stratify=roofs_chm['cls']) 
+            lg_train, lg_test = train_test_split(roofs_chm, test_size=0.3, train_size=0.7, random_state=0,
+                                                 shuffle=True, stratify=roofs_chm['cls']) 
             lg_train = pd.DataFrame(lg_train)
             lg_train = lg_train.assign(train=1)
             lg_test = pd.DataFrame(lg_test)
@@ -163,7 +163,7 @@ if __name__ == "__main__":
 
     logger.info('Getting the statistics of roofs...')
 
-    clipped_roofs=fct_misc.clip_labels(labels_gdf=roofs_chm, tiles_gdf=tiles, predicate_sjoin=PREDICATE)
+    clipped_roofs=fct_misc.clip_labels(labels_gdf=roofs_chm, tiles_gdf=tiles, predicate_sjoin='within')
                                 
     roofs_stats=pd.DataFrame()                                                              
     calculated_stats=['min', 'max', 'mean', 'median', 'std']
@@ -173,8 +173,10 @@ if __name__ == "__main__":
     num_cores = multiprocessing.cpu_count()
     print ("starting job on {} cores.".format(num_cores))
 
-    with tqdm_joblib(desc="Extracting statistics over clipped_roofs", total=clipped_roofs.shape[0]) as progress_bar:
-        roofs_stats_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_stats)(roof) for roof in clipped_roofs.itertuples())
+    with tqdm_joblib(desc="Extracting statistics over clipped_roofs",
+                     total=clipped_roofs.shape[0]) as progress_bar:
+        roofs_stats_list = Parallel(n_jobs=num_cores, prefer="threads")(
+            delayed(do_stats)(roof) for roof in clipped_roofs.itertuples())
 
     roofs_stats=pd.DataFrame()
     for row in roofs_stats_list:
@@ -214,13 +216,19 @@ if __name__ == "__main__":
     if GT:
         for cls in list(['i', 'l','e','s','t','b']):
             if sum(roofs_stats['class']==cls)>0:
-                max_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['max'])))
-                median_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['median'])))
-                min_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['min'])))
+                max_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[
+                    (roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['max'])))
+                median_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[
+                    (roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['median'])))
+                min_cls = statistics.median(list(filterfalse(isnan, roofs_stats.loc[
+                    (roofs_stats['class']==cls) & (roofs_stats['band']=='ndvi')]['min'])))
 
-                max_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['max'])))
-                median_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['median'])))
-                min_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[(roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['min'])))
+                max_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[
+                    (roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['max'])))
+                median_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[
+                    (roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['median'])))
+                min_cls_lum = statistics.median(list(filterfalse(isnan, roofs_stats.loc[
+                    (roofs_stats['class']==cls) & (roofs_stats['band']=='lum')]['min'])))
 
                 row = [cls, min_cls, median_cls, max_cls, min_cls_lum, median_cls_lum, max_cls_lum]
                 with open(os.path.join(RESULTS_DIR,STATS_CSV), 'a', newline='') as file:
@@ -234,6 +242,7 @@ if __name__ == "__main__":
         roofs_stats.loc[roofs_stats['class']=='e', 'class']='4. e'
         roofs_stats.loc[roofs_stats['class']=='l', 'class']='5. l'
         roofs_stats.loc[roofs_stats['class']=='i', 'class']='6. i'
+        roofs_stats = roofs_stats.reset_index().drop('index', axis=1)
 
         for band in roofs_stats['band'].unique():
             logger.info(f'For band {band}...')

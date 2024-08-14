@@ -15,7 +15,6 @@ import pandas as pd
 import geopandas as gpd
 import fiona
 import rasterio
-from rasterio.mask import mask
 from rasterio.features import shapes
 from shapely.geometry import shape
 
@@ -32,8 +31,10 @@ logger=fct_misc.format_logger(logger)
 @hydra.main(version_base=None, config_path="../config/", config_name="logReg")
 
 def my_app(cfg : DictConfig) -> None:
-    green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'green_roofs.shp')) 
-    roofs_egid_green.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roofs_green.shp')) 
+    green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                              str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'green_roofs.shp')) 
+    roofs_egid_green.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
+                                          str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roofs_green.shp')) 
 
     logger.info(f"Greenery and roofs saved with hydra in {hydra.core.hydra_config.HydraConfig.get().runtime.output_dir}")
 
@@ -53,7 +54,7 @@ def do_greenery(tile,roofs):
         gdf=gpd.GeoDataFrame(geoms, columns=['geometry', 'ndvi'])
         gdf.set_crs(crs=src.crs, inplace=True)
 
-        green_roofs = gpd.sjoin(gdf, roofs, how='inner', predicate='intersects', lsuffix='left', rsuffix='right')
+        green_roofs = gpd.sjoin(gdf, roofs, how='inner', predicate='within', lsuffix='left', rsuffix='right')
 
         green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
         green_roofs_egid['EGID']=green_roofs_egid.index
@@ -136,7 +137,8 @@ if __name__ == "__main__":
     logger.info(f"Starting job on {num_cores} cores...")  
 
     with tqdm_joblib(desc="Parallel greenery detection", total=tiles.shape[0]) as progress_bar:
-        green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
+        green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(
+            delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
 
     green_roofs=gpd.GeoDataFrame()
     for row in green_roofs_list:
@@ -181,7 +183,8 @@ if __name__ == "__main__":
                 row = ['TH_NDVI', 'TH_LUM', 'roofs_bare', 'roofs_green', 'green_roofs_bare', 'green_roofs_green']
                 writer.writerow(row)
 
-        row = [TH_NDVI, TH_LUM, sum(roofs_egid[GREEN_TAG]==0),sum(roofs_egid[GREEN_TAG]==1),sum(green_roofs_egid_att[GREEN_TAG]==0),sum(green_roofs_egid_att[GREEN_TAG]==1)]
+        row = [TH_NDVI, TH_LUM, sum(roofs_egid[GREEN_TAG]==0), sum(roofs_egid[GREEN_TAG]==1),
+               sum(green_roofs_egid_att[GREEN_TAG]==0), sum(green_roofs_egid_att[GREEN_TAG]==1)]
         with open(os.path.join(RESULTS_DIR,ROOF_COUNTS_CSV), 'a',newline='') as file:
             writer = csv.writer(file)
             writer.writerow(row)
