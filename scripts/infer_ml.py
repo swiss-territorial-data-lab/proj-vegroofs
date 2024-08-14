@@ -80,8 +80,6 @@ def infer_ml(roofs: gpd.GeoDataFrame, CLS_ML: str, MODEL_ML: str,
                                                 6: 'proba_lawn',
                                                 7: 'proba_int'})
     roofs = roofs.merge(roofs_pred_pd, on="EGID")
-    if 'fid' in roofs.columns:
-        roofs['fid'] = roofs['fid'].astype(int)
 
     roofs.to_file(os.path.join(WORKING_DIR, STAT_DIR +
                   'inf_'+CLS_ML+'_'+MODEL_ML+'.gpkg'))
