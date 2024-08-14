@@ -4,7 +4,6 @@ clip_image:
     ortho_directory: 01_initial/images/scratch/tiles/
     aoi: 01_initial/aoi/STDL_ZH_AOI.shp
     epsg: 'epsg:2056'
-    predicate_sjoin: 'intersects'
   outputs: 
     clip_ortho_directory: 02_intermediate/images/scratch/tiles
     extent_ortho_directory: 01_initial/images/scratch/extent
