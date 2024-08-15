@@ -1,4 +1,4 @@
-# Green roofs: automatic detection of roof vegetation, vegetation type and covered surface
+# Green roofs: automatic detection of roof vegetation <!--, vegetation type and covered surface-->
 
 This project provides a suite of Python scripts allowing the end-user to use machine learning to detect green roofs on land survey building footprint based on orthophotos. 
 
@@ -24,12 +24,12 @@ No specific requirements.
 ├───scripts
 │   │   calculate_raster.py       # computes the NDVI and luminosity rasters of the orthoimage tiles 
 │   |   clip_image.py             # clips the orthoimages for the aoi extent 
-│   |   greenery.py               # potential greenery detection by applying threshold on NDVI and luminosity
-│   |   infere_ml.py               # inferes with the trained machine learning algorithms
-│   |   train_ml.py                # trains and tests machine learning algorithms (logistic regression or random forest)
+│   |   greenery.py               # potential greenery detection by applying threshold on NDVI and luminosity rasters
+│   |   infere_ml.py              # infers with the trained machine learning algorithms
+│   |   train_ml.py               # trains and tests machine learning algorithms (logistic regression or random forest)
 │   |   roof_stats.py             # computes the descriptors for the machine learning algorithms
 │   |   
-│   └───functions                 # set of functions used in python scripts
+│   └───functions                 # set of functions used in Python scripts
 └── setup                         # requirements for environment installation
 ```
 
@@ -70,72 +70,53 @@ Images should be NRGB. If the band order is different, please edit `calculate_ra
       * ortho_directory
       * ndvi_directory
       * lum_directory
-3. `greenery.py`: identifies potential greenery on roofs based on NDVI and luminosity values, and computes potential greenery ratio per roofs. This script is optional. One may want to compute descriptors on the entire roof and not on the potential green parts of the roofs.
+
+Steps (3) and (4) are about preparing the descriptors for the ML algorithms. `greenery.py` produces a polygon vector layer of potential greenery on roofs based on NDVI and luminosity values, and computes potential greenery ratio per roofs. This script is optional, because one may want to compute descriptors in (4) on the entire roofs and not on the potential green parts of the roofs.
+ * Use `logReg.yaml` to specify the common inputs data to `greenery.py`and to `roofs_stats.py`.
+      * tile_delimitation
+      * gt
+      * green_tag
+      * green_cls
+      * chm_layer
+      * results_directory
+      * egid_train_test
+      * th_ndvi
+      * th_lum 
+      * epsg
+3. `greenery.py`: produces a polygon vector layer of potential greenery on roofs based on NDVI and luminosity values, and computes potential greenery ratio per roofs. This script is optional. One may want to compute descriptors on the entire roof and not on the potential green parts of the roofs.
 	* Use `logReg.yaml` to specify the inputs data.
-      * ortho_directory: 
-      * tile_delimitation: # directory for tile extent computed in this script
-      * ndvi_directory: 
-      * lum_directory: 
-      * roofs_file: # ground truth vector file or roofs for inference
-      * roofs_layer: # if roofs_file is in the GPKG format
-      * gt: # True (when training/testing with GT) or False (when infering)
-      * green_tag: # attribute field for green or not
-      * green_cls: # attribute field for vegetation classes
-      * chm_layer: # canopy height vector layer for masking of overhanging vegetation
-      * results_directory: 
-      * th_ndvi:  # no thresholding -1
-      * th_lum:  # no thresholding 765 or 210000
-      * epsg:
+      * roofs_file
+      * roofs_layer
+
 4. `roof_stats.py`: computes statistics of NDVI and luminosity values per roofs. Splits the roofs into a training and a test dataset. 
 	* Use`logReg.yaml` to specify the inputs data.
-      * ortho_directory: 
-      * tile_delimitation: # directory for tile extent computed in this script
-      * ndvi_directory: 
-      * lum_directory: 
-      * roofs_file:  # building vector layer or `*green_roofs.pgkg` layer from `greenery.py`
-      * roofs_layer: 
-      * gt: 
-      * green_tag:
-      * green_cls: 
-      * chm_layer: 
-      * results_directory: 
-      * egid_train_test: # split of the GT in train and test datasets 
-      * epsg:
+      * roofs_file
+      * roofs_layer
+
+
 ## Machine learning
 The machine learning approach was inspired by Louis-Lucas et al. (1) and adapted for the specificity of the project. In between, the machine learning algorithms and the descriptors used became rather different. 
+ * Use `logReg.yaml` to specify the common parameters of the model to train and infer with in `train_ml.py` and in `infer_ml.py` respectively.
 
-1. `train_ml.py`: trains a logistic regression and a random forest and evaluates them on a test dataset. 
+      * cls_ml
+      * model_ml
+      * trained_model_dir
+
+1. `train_ml.py`: trains a logistic regression or a random forest and evaluates the trained algorithm on a test dataset. 
 	* Use `logReg.yaml` to specify the inputs data.
-         * working_directory:
-         * roofs_file: 
-         * roofs_layer: 
-         * gt: 
-         * green_tag:
-         * green_cls: 
-         * results_directory: 
-         * egid_train_test: 
-         * th_ndvi:  # no thresholding -1
-         * th_lum:  # no thresholding 765 or 210000
-         * cls_ml: # 'binary' 'multi'
-         * model_ml: # 'LR' 'RF'
-         * trained_model_dir: # where to save the trained model for reuse
+         * roofs_file
+         * roofs_layer
 2. `infer_ml.py`: infers for descriptors computed with `roof_stats.py`. 
-	* Use `logReg.yaml` to specify the inputs data.
-         * working_directory: 
-         * roofs_file: 
-         * roofs_layer:  
-         * results_directory: 
-         * cls_ml: # 'binary' 'multi'
-         * model_ml: # 'LR' 'RF'
-         * trained_model_dir: # where to find the trained model
-
+      * Use `logReg.yaml` to specify the inputs data.    
+        * roofs_file
+        * roofs_layer
 
 ## Addendum
 
 ### Documentation
 The full documentation of the project is available on the [STDL's technical website](https://tech.stdl.ch/PROJ-VEGROOFS/).
 
-#### Folder structure 
+### Folder structure 
 Here following a proposition of data structure.
 
 ```

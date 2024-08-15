@@ -128,7 +128,8 @@ if __name__ == "__main__":
 
     logger.info('Stock path to images and corresponding NDVI and luminosity rasters...')
 
-    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
+    if not os.path.isfile(os.path.join(TILE_DELIMITATION,'extent.shp')):
+        fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
     tiles=fct_misc.get_ortho_tiles(tiles, ORTHO_DIR, NDVI_DIR, LUM_DIR)
@@ -141,12 +142,15 @@ if __name__ == "__main__":
         roofs.rename(columns={GREEN_TAG:'green_tag'}, inplace=True)
     roofs['geometry'] = roofs.buffer(-0.1)
 
-    logger.info('Filtering for overhanging vegetation...')
-    CHM = os.path.join(WORKING_DIR, CHM_LAYER)
-    chm=gpd.read_file(CHM)
-    chm['geometry'] = chm.buffer(1)
-    roofs_chm=gpd.overlay(roofs, chm, how='difference')
-   
+    if not 'green_roofs' in ROOFS_POLYGONS:
+        logger.info('Filtering for overhanging vegetation...')
+        CHM = os.path.join(WORKING_DIR, CHM_LAYER)
+        chm=gpd.read_file(CHM)
+        chm['geometry'] = chm.buffer(1)
+        roofs_chm=gpd.overlay(roofs, chm, how='difference')
+    else:
+        roofs_chm=roofs
+
     if GT:
         logger.info('Defining training and test dataset...')   
         if not os.path.isfile(os.path.join(RESULTS_DIR,EGID_TRAIN_TEST)):

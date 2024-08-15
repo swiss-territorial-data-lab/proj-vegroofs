@@ -1,10 +1,10 @@
 clip_image:
   working_directory: /proj-vegroofs/data
   inputs:
-    ortho_directory: 01_initial/images/scratch/tiles/
-    aoi: 01_initial/aoi/STDL_ZH_AOI.shp
-    epsg: 'epsg:2056'
+    ortho_directory: 01_initial/images/tiles/           # directory of the original images
+    aoi: 01_initial/aoi/aoi.shp                         # area of interest to cut the images with
+    epsg: 'epsg:2056'                                   # EPSG of the project
   outputs: 
-    clip_ortho_directory: 02_intermediate/images/scratch/tiles
-    extent_ortho_directory: 01_initial/images/scratch/extent
+    clip_ortho_directory: 02_intermediate/images/tiles  # directory for the clipped images in ouptut
+    extent_ortho_directory: 01_initial/images/extent    # directory for the computed extent of the original images
 
