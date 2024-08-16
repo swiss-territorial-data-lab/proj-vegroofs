@@ -1,5 +1,8 @@
 # Files
 **/*/*.ipynb
+config/clipImage.yaml
+config/logReg.yaml
+scripts/functions/merge_gt.py
 
 # Folders
 data/

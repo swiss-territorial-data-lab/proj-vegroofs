@@ -1,25 +1,26 @@
 hydra:
   run:
-    dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
+    dir: 02_intermediate/th/training_or_inference_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}     # output directory for potential greenery detection (vector)
 
 prod: 
-prod: 
-  working_directory: /proj-vegroofs/data
-  ortho_directory: 02_intermediate/images/scratch/tiles
-  tile_delimitation: 02_intermediate/images/scratch/extent/
-  ndvi_directory: 02_intermediate/images/scratch/ndvi
-  lum_directory: 02_intermediate/images/scratch/lum
-  roofs_gt: 02_intermediate/gt/gt_tot.gpkg
-  roofs_layer: gt_to_label
-  chm_layer: 02_intermediate/autres/CHM_AOI.gpkg
-  results_directory: 03_results/scratch_gt/
-  egid_train_test: egid_train_test_gt.csv
-  roofs_lr: 02_intermediate/th/2024-06-14/10-10-21/0_765_gt_tot_green.shp
-  predicate_sjoin: 'within'
-  th_ndvi: 0 # no thresholding -1
-  th_lum: 765 # no thresholding 765
-  cls_lr: 'multi' # 'multi' 'multi_aggreg'
-  model_ml: 'LR' # 'LR' 'RF'
-  epsg: 'epsg:2056'
+  working_directory: /proj-vegroofs/data                      
+  ortho_directory: 02_intermediate/images/tiles                 # directory of the clipped images
+  tile_delimitation: 02_intermediate/images/extent/             # directory for the computed extent of the clipped images
+  ndvi_directory: 02_intermediate/images/ndvi                   # directory for the NDVI rasters in ouptut
+  lum_directory: 02_intermediate/images/lum                     # directory for the luminosity rasters in ouptut
+  roofs_file: 02_intermediate/gt/gt_tot.gpkg                    # gt building vector layer or `*green_roofs.gpkg` layer from `greenery.py`
+  roofs_layer:                                                  # if roofs_file is in the GPKG format and contain several layers
+  gt: True                                                      # True (when training/testing with GT) or False (when infering) 
+  green_tag: 'veg_new'                                          # attribute field for "green or not" in roofs_file
+  green_cls: 'class'                                            # attribute field for vegetation classes in roofs_file
+  chm_layer: 02_intermediate/autres/CHM_AOI.gpkg                # canopy height vector layer for masking of overhanging vegetation
+  results_directory: 03_results/training_or_inference_outputs/  # directory for stats and machine learning ouptuts
+  egid_train_test: egid_train_test_gt.csv                       # CSV with split of the GT in train and test datasets                  
+  th_ndvi: 0                                                    # no thresholding: -1. For greenery.py: e.g. 0.
+  th_lum: 765                                                   # no thresholding: 765 (8-bit), 21000 (16-bit). For greenery.py: e.g. 500 (8-bit), 13725 (16-bit).
+  cls_ml: 'binary'                                              # choice of classification scheme: 'binary' or 'multi' 
+  model_ml: 'RF'                                                # choice of algorithms: 'LR'or 'RF'                              
+  trained_model_dir: 03_results/training_outputs/               # directory where to save the trained model for reuse
+  epsg: 'epsg:2056'                                             # EPSG of the project
 
 
