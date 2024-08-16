@@ -12,11 +12,10 @@
 clip_image:
   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
   inputs:
-    ortho_directory: 01_initial/images/infer/tiles/
-    aoi: 01_initial/images/infer/extent/extent.shp
+    ortho_directory: 01_initial/images/infer_moitie/tiles/
+    aoi: 01_initial/images/infer_moitie/extent/extent.shp
     epsg: 'epsg:2056'
-    predicate_sjoin: 'intersects'
   outputs: 
-    clip_ortho_directory: 02_intermediate/images/infer/tiles
-    extent_ortho_directory: 01_initial/images/infer/extent
+    clip_ortho_directory: 02_intermediate/images/infer_moitie/tiles
+    extent_ortho_directory: 01_initial/images/infer_moitie/extent
 

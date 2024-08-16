@@ -146,8 +146,7 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str,
     # ml_train = roofs_gt.loc[(roofs_gt['unID']<=1446)]
     # ml_test = roofs_gt.loc[(roofs_gt['unID']>1446)]
 
-    logger.info(f"Training model:
-                {'logisitic regression' if MODEL_ML == 'LR' else 'random forest'}...")
+    logger.info(f"Training model: {'logisitic regression' if MODEL_ML == 'LR' else 'random forest'}...")
     random.seed(10)
     
     if MODEL_ML == 'LR':
@@ -155,10 +154,10 @@ def train_ml(roofs_gt: gpd.GeoDataFrame, GREEN_TAG: str, GREEN_CLS: str,
                  'C':[1,0.5,0.1],'max_iter':[200, 500, 800]}
         model = LogisticRegression(class_weight='balanced', random_state=0)
     if MODEL_ML == 'RF': 
-        param = {'n_estimators':[200,500, 800],'max_features':[4,5.6,7]}
+        param = {'n_estimators':[200,500, 800],'max_features':[4,5,6,7]}
         model = RandomForestClassifier(random_state=0, class_weight='balanced')
 
-    clf = GridSearchCV(model, param)
+    clf = GridSearchCV(model, param, scoring='balanced_accuracy')
     clf.fit(ml_train[desc_col], ml_train[cls])
     with open(os.path.join(WORKING_DIR, STAT_DIR,f"model_{CLS_ML}_{MODEL_ML}.pkl"),'wb') as f:
         pickle.dump(clf,f)

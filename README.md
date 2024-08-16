@@ -85,6 +85,7 @@ Steps (3) and (4) are about preparing the descriptors for the ML algorithms. `gr
       * epsg
 3. `greenery.py`: produces a polygon vector layer of potential greenery on roofs based on NDVI and luminosity values, and computes potential greenery ratio per roofs. This script is optional. One may want to compute descriptors on the entire roof and not on the potential green parts of the roofs.
 	* Use `logReg.yaml` to specify the inputs data.
+      * hydra:run:dir
       * roofs_file
       * roofs_layer
 

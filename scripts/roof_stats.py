@@ -140,9 +140,9 @@ if __name__ == "__main__":
     if GT:
         roofs.rename(columns={GREEN_CLS:'cls'}, inplace=True)
         roofs.rename(columns={GREEN_TAG:'green_tag'}, inplace=True)
-    roofs['geometry'] = roofs.buffer(-0.1)
 
     if not 'green_roofs' in ROOFS_POLYGONS:
+        roofs['geometry'] = roofs.buffer(-0.5)
         logger.info('Filtering for overhanging vegetation...')
         CHM = os.path.join(WORKING_DIR, CHM_LAYER)
         chm=gpd.read_file(CHM)
