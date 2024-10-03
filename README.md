@@ -114,8 +114,8 @@ The machine learning approach was inspired by Louis-Lucas et al. (1) and adapted
 
 ## Addendum
 
-### Documentation
-The full documentation of the project is available on the [STDL's technical website](https://tech.stdl.ch/PROJ-VEGROOFS/).
+<!-- ### Documentation
+The full documentation of the project is available on the [STDL's technical website](https://tech.stdl.ch/PROJ-VEGROOFS/). -->
 
 ### Folder structure 
 Here following a proposition of data structure.
