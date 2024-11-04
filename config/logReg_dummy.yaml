@@ -1,7 +1,3 @@
-hydra:
-  run:
-    dir: 02_intermediate/th/training_or_inference_outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}     # output directory for potential greenery detection (vector)
-
 prod: 
   working_directory: /proj-vegroofs/data                      
   ortho_directory: 02_intermediate/images/tiles                 # directory of the clipped images
@@ -22,5 +18,3 @@ prod:
   model_ml: 'RF'                                                # choice of algorithms: 'LR'or 'RF'                              
   trained_model_dir: 03_results/training_outputs/               # directory where to save the trained model for reuse
   epsg: 'epsg:2056'                                             # EPSG of the project
-
-
