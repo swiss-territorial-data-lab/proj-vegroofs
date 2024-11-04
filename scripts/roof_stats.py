@@ -142,8 +142,9 @@ if __name__ == "__main__":
         roofs.rename(columns={GREEN_TAG:'green_tag'}, inplace=True)
 
     if not 'green_roofs' in ROOFS_POLYGONS:
-        roofs['geometry'] = roofs.buffer(-0.5)
+        roofs['geometry'] = roofs.buffer(-1)
         logger.info('Filtering for overhanging vegetation...')
+        roofs = roofs[roofs.geometry.is_empty==False]
         CHM = os.path.join(WORKING_DIR, CHM_LAYER)
         chm=gpd.read_file(CHM)
         chm['geometry'] = chm.buffer(1)
@@ -174,7 +175,7 @@ if __name__ == "__main__":
     BANDS={1: 'nir', 2: 'red', 3: 'green', 4: 'blue'}
 
     print("Multithreading with joblib for statistics over beeches: ")
-    num_cores = multiprocessing.cpu_count()
+    num_cores = multiprocessing.cpu_count()-1
     print ("starting job on {} cores.".format(num_cores))
 
     with tqdm_joblib(desc="Extracting statistics over clipped_roofs",
@@ -191,11 +192,11 @@ if __name__ == "__main__":
     cols=['min', 'max', 'median', 'mean', 'std']
     rounded_stats[cols]=rounded_stats[cols].round(3)
     rounded_stats = rounded_stats.dropna(axis=0,subset=['min','max','mean','std','median'])
-    rounded_stats.drop_duplicates(inplace=True)
-    rounded_stats.drop_duplicates(subset=['EGID','band'], inplace=True)
+    rounded_stats_sort = rounded_stats.sort_values('mean', axis=0, ascending=True)
+    rounded_stats_sort.drop_duplicates(subset=['EGID','band'],keep='last',inplace=True)
 
     filepath=os.path.join(RESULTS_DIR,'roof_stats.csv')
-    rounded_stats.to_csv(filepath)
+    rounded_stats_sort.to_csv(filepath)
     del rounded_stats, cols, filepath
 
     logger.info('Printing overall min, median and max of NDVI and luminosity for the GT green roofs...')

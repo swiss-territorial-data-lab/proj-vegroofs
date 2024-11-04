@@ -8,9 +8,6 @@ import multiprocessing
 from threading import Lock
 from tqdm_joblib import tqdm_joblib
 
-import hydra
-from omegaconf import DictConfig, OmegaConf
-
 import pandas as pd
 import geopandas as gpd
 import fiona
@@ -28,17 +25,7 @@ lock = Lock()
 
 logger=fct_misc.format_logger(logger)
 
-@hydra.main(version_base=None, config_path="../config/", config_name="logReg")
-
-def my_app(cfg : DictConfig) -> None:
-    green_roofs_egid_att.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                              str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'green_roofs.shp')) 
-    roofs_egid_green.to_file(os.path.join(hydra.core.hydra_config.HydraConfig.get().runtime.output_dir,
-                                          str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roofs_green.shp')) 
-
-    logger.info(f"Greenery and roofs saved with hydra in {hydra.core.hydra_config.HydraConfig.get().runtime.output_dir}")
-
-def do_greenery(tile,roofs):
+def do_greenery(tile, shapes_roof, roofs):
     lum_dataset = rasterio.open(tile.path_lum)
     ndvi_dataset = rasterio.open(tile.path_NDVI)
 
@@ -56,7 +43,7 @@ def do_greenery(tile,roofs):
 
         green_roofs = gpd.sjoin(gdf, roofs, how='inner', predicate='within', lsuffix='left', rsuffix='right')
 
-        green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
+        green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "min",})
         green_roofs_egid['EGID']=green_roofs_egid.index
         green_roofs_egid.index.names = ['Index']
 
@@ -121,7 +108,8 @@ if __name__ == "__main__":
     roofs=gpd.read_file(ROOFS_POLYGONS, layer=ROOFS_LAYER)
     if GT: 
         roofs.rename(columns={GREEN_CLS:'cls'}, inplace=True)
-    roofs['geometry'] = roofs.buffer(-0.5)
+    roofs['geometry'] = roofs.buffer(-1)
+    roofs = roofs[roofs.geometry.is_empty==False]
     roofs_egid = roofs.dissolve(by='EGID', aggfunc='first')
     roofs_egid['area']=roofs_egid.area
     roofs_egid['EGID']=roofs_egid.index
@@ -138,14 +126,14 @@ if __name__ == "__main__":
 
     with tqdm_joblib(desc="Parallel greenery detection", total=tiles.shape[0]) as progress_bar:
         green_roofs_list = Parallel(n_jobs=num_cores, prefer="threads")(
-            delayed(do_greenery)(tile,roofs) for tile in tiles.itertuples())
+            delayed(do_greenery)(tile,shapes_roof, roofs) for tile in tiles.itertuples())
 
     green_roofs=gpd.GeoDataFrame()
     for row in green_roofs_list:
         green_roofs = pd.concat([green_roofs, row])
 
-    green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "max",})
-    green_roofs_egid.rename(columns={'ndvi':'ndvi_max'}, inplace=True)
+    green_roofs_egid = green_roofs.dissolve(by='EGID', aggfunc={"ndvi": "min",})
+    green_roofs_egid.drop(columns=['ndvi'], inplace=True)
     green_roofs_egid['EGID']=green_roofs_egid.index
     green_roofs_egid.index.names = ['Index']
 
@@ -169,7 +157,11 @@ if __name__ == "__main__":
     roofs_egid_green['area_green'] = roofs_egid_green['area_green'].fillna(0)
     roofs_egid_green['area_ratio'] = roofs_egid_green['area_green']/roofs_egid_green['area']
 
-    my_app()
+    green_roofs_egid_att.to_file(os.path.join(RESULTS_DIR,
+                                              str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'green_roofs.gpkg')) 
+    roofs_egid_green.to_file(os.path.join(RESULTS_DIR,
+                                          str(TH_NDVI)+'_'+str(TH_LUM)+'_'+'roofs_green.gpkg')) 
+    logger.info(f"Greenery and roofs saved in {RESULTS_DIR}")
    
     if GT:
 
