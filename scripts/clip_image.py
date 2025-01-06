@@ -2,7 +2,7 @@ import os, sys
 import yaml
 import argparse
 from loguru import logger
-import tqdm as tqdm
+from tqdm import tqdm
 
 import geopandas as gpd
 
@@ -56,7 +56,7 @@ if __name__ == "__main__":
     # keep only the geometry column
     aoi = aoi.filter(['geometry'])
     # buffer every geometry by 50 units
-    for index, row in aoi.iterrows():
+    for index, row in tqdm(aoi.iterrows(), total=len(aoi), desc="Buffering geometries"):
         row = row.copy()
         aoi.loc[index, 'geometry'] = row.geometry.buffer(50,join_style=2)
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
     aoi_clipped=aoi_clipped.reset_index(drop=True)
 
     i=1
-    for idx,row in aoi_clipped.iterrows(): 
+    for idx,row in tqdm(aoi_clipped.iterrows(), total=len(aoi_clipped), desc="Clipping rasters"): 
         fct_misc.clip_im(ORTHO_DIR, aoi_clipped.iloc[[idx]], OUTPUT_DIR, i, EPSG)
         i=i+1
     logger.success(f'Successfully clipped {i-1} images.')

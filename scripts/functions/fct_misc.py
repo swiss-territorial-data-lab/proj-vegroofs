@@ -16,6 +16,8 @@ from rasterio.features import dataset_features
 
 import csv
 import warnings
+
+from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
 def format_logger(logger):
@@ -152,10 +154,10 @@ def generate_extent(PATH_IN: str, PATH_OUT: str, EPSG: str = 'epsg:2056'):
                 list_name.append(name)
     
     ext_merge=gpd.GeoDataFrame()
-    for _name in list_name:
+    for _, _name in tqdm(enumerate(list_name), total=len(list_name), desc="Computing extent"):
 
         _tif = os.path.join(PATH_IN, _name)
-        logger.info(f'Computing extent of {str(_name)} ...')
+        # logger.info(f'Computing extent of {str(_name)} ...')
 
         with rasterio.open(_tif) as src:
             gdf = gpd.GeoDataFrame.from_features(
@@ -193,7 +195,7 @@ def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = '
 
     with rasterio.open(os.path.join(TIFF_FOLDER, GPD.iloc[-1]['NAME']+'.tif')) as src:
 
-        logger.info('Clipping ' + GPD.iloc[-1]['NAME'] + '.tif...')
+        # logger.info('Clipping ' + GPD.iloc[-1]['NAME'] + '.tif...')
         
         out_image, out_transform = rasterio.mask.mask(
             src,
@@ -225,4 +227,4 @@ def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = '
         with rasterio.open(out_path, 'w', **out_meta) as dst:
             dst.write(out_image)
         
-        logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
+        # logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
