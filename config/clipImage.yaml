@@ -17,7 +17,7 @@ clip_image:
     epsg: 'epsg:2056'
   outputs: 
     clip_ortho_directory: ML/results/infer_moitie/tiles
-    extent_ortho_directory: ML/results/infer_moitie/tiles/extent
+    extent_ortho_directory: ML/results/infer_moitie/extent
 
 
 # clip_image:

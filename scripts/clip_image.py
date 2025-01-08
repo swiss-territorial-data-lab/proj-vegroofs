@@ -46,8 +46,8 @@ if __name__ == "__main__":
 
     os.chdir(WORKING_DIR)
     fct_misc.ensure_dir_exists(OUTPUT_DIR)
-
-    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
+    if not os.path.isfile(os.path.join(TILE_DELIMITATION,'extent.shp')):
+        fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
     logger.info('Reading AOI geometries...')

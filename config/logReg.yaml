@@ -5,7 +5,7 @@ hydra:
 dev:
   working_directory: D:/GitHubProjects/STDL_vegroof_production
   ortho_directory: ML/results/infer_moitie/tiles
-  tile_delimitation: ML/results/infer_moitie/extent
+  tile_delimitation: ML/results/infer_moitie/tiles/extent
   ndvi_directory: ML/results/infer_moitie/ndvi
   lum_directory: ML/results/infer_moitie/lum
   roofs_file: sources/Footprint/GE/CAD_BATIMENT_HORSOL_updated.gpkg
