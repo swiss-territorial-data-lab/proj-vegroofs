@@ -41,17 +41,17 @@ def infer_ml_batch(cfg_clipImage, cfg_logRes):
         # Clipping images 
         start_time_2 = time()
         print(f"Time for loading initial stuff: {round((start_time_2 - start_time)/60, 2)}min")
-        subprocess.run(["./.venv/Scripts/python", "./scripts/clip_image.py", '-cfg', temp_cfg_clipImage])
+        subprocess.run(["./.venv/bin/python", "./scripts/clip_image.py", '-cfg', temp_cfg_clipImage])
         start_time_3 = time()
         print(f"Time for clip_image script: {round((start_time_3 - start_time_2)/60, 2)}min")
 
         # # Computing rasters
-        subprocess.run(["./.venv/Scripts/python", "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg])
+        subprocess.run(["./.venv/bin/python", "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg])
         start_time_4 = time()
         print(f"Time for calculate_raster script: {round((start_time_4 - start_time_3)/60, 2)}min")
 
         # # Greenery
-        subprocess.run(["./.venv/Scripts/python", "./scripts/greenery.py", "-cfg", temp_cfg_logReg])
+        subprocess.run(["./.venv/bin/python", "./scripts/greenery.py", "-cfg", temp_cfg_logReg])
         start_time_5 = time()
         print(f"Time for greenery script: {round((start_time_5 - start_time_4)/60, 2)}min")
 
@@ -64,12 +64,12 @@ def infer_ml_batch(cfg_clipImage, cfg_logRes):
             yaml.dump(cfg_logRes, outfile)
 
         # Compute stats
-        subprocess.run(["./.venv/Scripts/python", "./scripts/roof_stats.py", "-cfg", temp_cfg_logReg])
+        subprocess.run(["./.venv/bin/python", "./scripts/roof_stats.py", "-cfg", temp_cfg_logReg])
         start_time_6 = time()
         print(f"Time for roof_stats script: {round((start_time_6 - start_time_5)/60, 2)}min")
 
         # Do inference
-        subprocess.run(["./.venv/Scripts/python", "./scripts/infer_ml.py", "-cfg", temp_cfg_logReg])
+        subprocess.run(["./.venv/bin/python", "./scripts/infer_ml.py", "-cfg", temp_cfg_logReg])
         start_time_7 = time()
         print(f"Time for inference script: {round((start_time_7 - start_time_6)/60, 2)}min")
 
