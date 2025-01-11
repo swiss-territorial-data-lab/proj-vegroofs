@@ -5,6 +5,7 @@ import pandas as pd
 import geopandas as gpd
 import shutil
 import yaml
+from tqdm import tqdm
 import argparse
 from time import time
 import subprocess
@@ -12,8 +13,9 @@ import tempfile
 sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc
 from copy import deepcopy
+import platform
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 5000
 
 def infer_ml_batch(cfg_clipImage, cfg_logReg):
     WORKING_DIR = cfg_clipImage['clip_image']['working_directory']
@@ -48,9 +50,17 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
             EPSG,
             )
 
+    # Platform interpretor
+    interpretor_path = ""
+    if platform.system() == 'Windows':
+        interpretor_path = "./.venv/Scripts/python"
+    else:
+        interpretor_path = "./.venv/bin/python"
+
     # Start batching
     temp_result_folders = []
     for batch in range(num_batchs):
+        batch = 1
         start_time = time()
         print(f"Processing batch {batch+1} / {num_batchs}")
 
@@ -67,12 +77,12 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         # Clipping images 
         start_time_2 = time()
         print(f"Time for loading initial stuff: {round((start_time_2 - start_time)/60, 2)}min")
-        subprocess.run(["./.venv/Scripts/python", "./scripts/clip_image.py", '-cfg', temp_cfg_clipImage])
+        subprocess.run([interpretor_path, "./scripts/clip_image.py", '-cfg', temp_cfg_clipImage])
         start_time_3 = time()
         print(f"Time for clip_image script: {round((start_time_3 - start_time_2)/60, 2)}min")
 
         # # Computing rasters
-        subprocess.run(["./.venv/Scripts/python", "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg_dir])
+        subprocess.run([interpretor_path, "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg_dir])
         start_time_4 = time()
         print(f"Time for calculate_raster script: {round((start_time_4 - start_time_3)/60, 2)}min")
 
@@ -84,34 +94,28 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
             yaml.dump(temp_cfg_logReg, outfile)
 
         # # Greenery
-        subprocess.run(["./.venv/Scripts/python", "./scripts/greenery.py", "-cfg", temp_cfg_logReg_dir])
+        subprocess.run([interpretor_path, "./scripts/greenery.py", "-cfg", temp_cfg_logReg_dir])
         start_time_5 = time()
         print(f"Time for greenery script: {round((start_time_5 - start_time_4)/60, 2)}min")
 
 
         # Compute stats
-        subprocess.run(["./.venv/Scripts/python", "./scripts/roof_stats.py", "-cfg", temp_cfg_logReg_dir])
+        subprocess.run([interpretor_path, "./scripts/roof_stats.py", "-cfg", temp_cfg_logReg_dir])
         start_time_6 = time()
         print(f"Time for roof_stats script: {round((start_time_6 - start_time_5)/60, 2)}min")
 
         # Do inference
-        subprocess.run(["./.venv/Scripts/python", "./scripts/infer_ml.py", "-cfg", temp_cfg_logReg_dir])
+        subprocess.run([interpretor_path, "./scripts/infer_ml.py", "-cfg", temp_cfg_logReg_dir])
         start_time_7 = time()
         print(f"Time for inference script: {round((start_time_7 - start_time_6)/60, 2)}min")
 
-        # print(result.stdout)
         os.remove(os.path.join(temp_storage, 'sub_AOI.gpgk'))
         os.remove(temp_cfg_logReg_dir)
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ortho_directory']))
-        # for file in os.listdir(os.path.join(WORKING_DIR, cfg_logReg['dev']['ortho_directory'])):
-        #     file_path = os.path.join(os.path.join(WORKING_DIR, cfg_logReg['dev']['ortho_directory']), file)
-        #     # Check if it's a file
-        #     if os.path.isfile(file_path):
-        #         os.remove(file_path)
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ndvi_directory']))
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['lum_directory']))
         print(f"Time for batch: {round((time() - start_time)/60, 2)}min")
-        if batch == 2:
+        if batch == 1:
             break
     
     # Merge results
@@ -122,11 +126,36 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         df_results = df_sub_res if len(df_results) == 0 else gpd.GeoDataFrame(pd.concat([df_results, df_sub_res], ignore_index=True))
 
     df_results.to_file(os.path.join(WORKING_DIR, cfg_logReg['dev']['results_directory'], 'results.gpkg'), driver="GPKG")
-    os.remove(temp_storage)
+    shutil.rmtree(temp_storage)
     print("MERGING COMPLETED!")
 
 
 if __name__ == '__main__':
+    # # load input parameters
+    # with open("config/logReg.yaml") as fp:
+    #     cfg_logReg = yaml.load(fp, Loader=yaml.FullLoader)
+
+    # CLS_ML = cfg_logReg['dev']['cls_ml']
+    # MODEL_ML = cfg_logReg['dev']['model_ml']
+    
+    # WORKING_DIR = cfg_logReg['dev']['working_directory']
+    # temp_result_folders = [
+    #     'ML/results/results_batch0',
+    #     'ML/results/results_batch1',
+    #     'ML/results/results_batch2',
+    #                        ]
+    # WORKING_DIR = r"D:\GitHubProjects\STDL_vegroof_production"
+    # temp_result_folders = [f'ML/results_GE/results_batch{x}' for x in range(16)]
+    # # Merge results
+    # df_results = gpd.GeoDataFrame()
+    # for _, res_dir in tqdm(enumerate(temp_result_folders), total=len(temp_result_folders), desc='Merging results'):
+    #     df_sub_res = gpd.read_file(os.path.join(WORKING_DIR, res_dir, "inf_binary_LR.gpkg"))
+    #     df_results = df_sub_res if len(df_results) == 0 else gpd.GeoDataFrame(pd.concat([df_results, df_sub_res], ignore_index=True))
+
+    # df_results.to_file(os.path.join(WORKING_DIR, "ML/results_GE", 'results.gpkg'), driver="GPKG", index=False)
+    # quit()
+
+
     # load input parameters
     with open("config/logReg.yaml") as fp:
         cfg_logReg = yaml.load(fp, Loader=yaml.FullLoader)
