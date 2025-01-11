@@ -10,7 +10,7 @@
 #     extent_ortho_directory: 01_initial/images/rs_tlm/extent
 
 clip_image:
-  working_directory: D:/GitHubProjects/STDL_vegroof_production
+  working_directory: /mnt/data-volume-02/destouch/proj-vegroofs/data
   inputs:
     ortho_directory: sources/rasters/GE
     aoi: sources/Footprint/GE/CAD_BATIMENT_HORSOL_updated.gpkg

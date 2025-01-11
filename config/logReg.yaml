@@ -3,7 +3,7 @@ hydra:
     dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 dev:
-  working_directory: D:/GitHubProjects/STDL_vegroof_production
+  working_directory: /mnt/data-volume-02/destouch/proj-vegroofs/data
   ortho_directory: ML/results/infer_moitie/tiles
   tile_delimitation: ML/results/infer_moitie/tiles/extent
   ndvi_directory: ML/results/infer_moitie/ndvi
