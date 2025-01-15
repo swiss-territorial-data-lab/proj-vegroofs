@@ -141,16 +141,17 @@ if __name__ == "__main__":
         roofs.rename(columns={GREEN_CLS:'cls'}, inplace=True)
         roofs.rename(columns={GREEN_TAG:'green_tag'}, inplace=True)
 
-    if not 'green_roofs' in ROOFS_POLYGONS:
-        roofs['geometry'] = roofs.buffer(-1)
-        logger.info('Filtering for overhanging vegetation...')
-        roofs = roofs[roofs.geometry.is_empty==False]
-        CHM = os.path.join(WORKING_DIR, CHM_LAYER)
-        chm=gpd.read_file(CHM)
-        chm['geometry'] = chm.buffer(1)
-        roofs_chm=gpd.overlay(roofs, chm, how='difference')
-    else:
-        roofs_chm=roofs
+    # if not 'green_roofs' in ROOFS_POLYGONS:
+    #     roofs['geometry'] = roofs.buffer(-1)
+    #     logger.info('Filtering for overhanging vegetation...')
+    #     roofs = roofs[roofs.geometry.is_empty==False]
+    #     CHM = os.path.join(WORKING_DIR, CHM_LAYER)
+    #     chm=gpd.read_file(CHM)
+    #     chm['geometry'] = chm.buffer(1)
+    #     roofs_chm=gpd.overlay(roofs, chm, how='difference')
+    # else:
+    #     roofs_chm=roofs
+    roofs_chm=roofs
 
     if GT:
         logger.info('Defining training and test dataset...')   

@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+import dask_geopandas as dg
 import shutil
 import yaml
 from tqdm import tqdm
@@ -22,7 +23,6 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     CLS_ML = cfg_logReg['dev']['cls_ml']
     MODEL_ML = cfg_logReg['dev']['model_ml']
     AOI = gpd.read_file(os.path.join(WORKING_DIR,cfg_clipImage['clip_image']['inputs']['aoi']))
-    num_batchs = int(len(AOI) / BATCH_SIZE - 1) + 1
 
     # Create temp folder
     temp_storage = tempfile.mkdtemp()
@@ -57,6 +57,37 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     else:
         interpretor_path = "./.venv/bin/python"
 
+    # Filtering for overhanging vegetation
+    CHM = cfg_logReg['dev']['chm_layer']
+    print('Filtering for overhanging vegetation...')
+    # green_roofs_egid = gpd.read_file(os.path.join(WORKING_DIR, AOI))
+    time_start = time()
+    CHM_GPD = dg.read_file(os.path.join(WORKING_DIR, CHM), chunksize=100000)
+    delayed_partitions = CHM_GPD.to_delayed()
+    results = []
+    print(f"Length of AOI: {len(AOI)}")
+
+    for _, delayed_partition in tqdm(enumerate(delayed_partitions), total=len(delayed_partitions)):
+        # Compute the partition (convert to a GeoDataFrame)
+        partition_gdf = delayed_partition.compute()
+        
+        # Perform operation on the partition
+        AOI = gpd.overlay(AOI, partition_gdf,how='difference')
+    print(f"Length of AOI: {len(AOI)}")
+
+    # Merging results into new roof file
+    # new_roofs = gpd.GeoDataFrame()
+    # for res in results:
+    #     AOI = res if len(AOI) == 0 else gpd.GeoDataFrame(pd.concat([AOI, res], ignore_index=True))
+    # print(f"Length of AOI: {len(AOI)}")
+    # AOI.drop_duplicates(inplace=True)
+    # print(f"Length of AOI: {len(AOI)}")
+    # new_roofs_src = os.path.join(temp_storage, "temp_roofs.gpkg")
+    # AOI.to_file(new_roofs_src, driver='GPKG')
+
+    print(f'finished to process CHM in {time() - time_start}sec')
+
+    num_batchs = int(len(AOI) / BATCH_SIZE - 1) + 1
     # Start batching
     temp_result_folders = []
     for batch in range(num_batchs):
