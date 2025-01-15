@@ -3,17 +3,17 @@ hydra:
     dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 dev:
-  working_directory: /mnt/data-volume-02/destouch/proj-vegroofs/data
+  working_directory: D:/GitHubProjects/STDL_vegroof_production
   ortho_directory: ML/results/infer_moitie/tiles
   tile_delimitation: ML/results/infer_moitie/tiles/extent
   ndvi_directory: ML/results/infer_moitie/ndvi
   lum_directory: ML/results/infer_moitie/lum
-  roofs_file: sources/Footprint/GE/CAD_BATIMENT_HORSOL_updated.gpkg
+  roofs_file: sources/Footprint/ZH/00-AVBodenbedGeb_updated.gpkg
   roofs_layer: 
   gt: False
   green_tag: 'veg_new_3'
   green_cls: 'class_3'
-  chm_layer: sources/CHM/GE/SIPV_ICA_MNC_2019.shp
+  chm_layer: sources/CHM/ZH/chm_ZH_total.shp
   results_directory: ML/results
   egid_train_test: egid_train_test_gt.csv
   th_ndvi: 0 # no thresholding -1

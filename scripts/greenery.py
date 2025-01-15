@@ -10,6 +10,8 @@ from tqdm_joblib import tqdm_joblib
 
 import pandas as pd
 import geopandas as gpd
+import dask_geopandas as dg
+from time import time
 import fiona
 import rasterio
 from rasterio.features import shapes
@@ -138,12 +140,30 @@ if __name__ == "__main__":
     green_roofs_egid.index.names = ['Index']
 
     logger.info('Filtering for overhanging vegetation...')
-
-    CHM = os.path.join(WORKING_DIR, CHM_LAYER)
-    CHM_GPD=gpd.read_file(CHM)
-    CHM_GPD['geometry'] = CHM_GPD.buffer(1)
-    green_roofs_egid=gpd.overlay(green_roofs_egid, CHM_GPD, how='difference')
-    green_roofs_egid['area_green'] = green_roofs_egid.area
+    try:
+        CHM = os.path.join(WORKING_DIR, CHM_LAYER)
+        print('starting to load CHM')
+        time_start = time()
+        CHM_GPD = gpd.read_file(CHM)
+        # CHM_GPD = dg.read_file(CHM, chunksize=100000)
+        # CHM_GPD = CHM_GPD.compute()
+        # CHM_GPD = CHM_GPD.calculate_spatial_partitions()
+        # small_bounds = green_roofs_egid.total_bounds
+        # CHM_GPD = CHM_GPD.cx[
+        #     small_bounds[0]:small_bounds[2], small_bounds[1]:small_bounds[3]
+        #     ]
+        # CHM_GPD = CHM_GPD.compute()
+        # green_roofs_egid = CHM_GPD.overlay(green_roofs_egid, how='difference')
+        CHM_GPD['geometry'] = CHM_GPD.buffer(1)
+        green_roofs_egid['area_green'] = green_roofs_egid.area
+        print(f'finished to load CHM in {time() - time_start}sec')
+        
+        print('starting overlay')
+        time_start = time()
+        green_roofs_egid=gpd.overlay(green_roofs_egid, CHM_GPD, how='difference')
+        print(f'finished to overlay in {time() - time_start}sec')
+    except Exception as e:
+        logger.info(f"Error happened during overhanging veg filtering: {e}")
 
     
     logger.info('Join greenery on the roofs and vice-versa, saving...')

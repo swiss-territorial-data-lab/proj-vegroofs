@@ -10,10 +10,10 @@
 #     extent_ortho_directory: 01_initial/images/rs_tlm/extent
 
 clip_image:
-  working_directory: /mnt/data-volume-02/destouch/proj-vegroofs/data
+  working_directory: D:/GitHubProjects/STDL_vegroof_production
   inputs:
-    ortho_directory: sources/rasters/GE
-    aoi: sources/Footprint/GE/CAD_BATIMENT_HORSOL_updated.gpkg
+    ortho_directory: sources/rasters/ZH
+    aoi: sources/Footprint/ZH/00-AVBodenbedGeb_updated.gpkg
     epsg: 'epsg:2056'
   outputs: 
     clip_ortho_directory: ML/results/infer_moitie/tiles

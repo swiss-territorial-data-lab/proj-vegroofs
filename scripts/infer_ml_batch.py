@@ -15,7 +15,7 @@ import functions.fct_misc as fct_misc
 from copy import deepcopy
 import platform
 
-BATCH_SIZE = 5000
+BATCH_SIZE = 10
 
 def infer_ml_batch(cfg_clipImage, cfg_logReg):
     WORKING_DIR = cfg_clipImage['clip_image']['working_directory']
@@ -60,7 +60,6 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     # Start batching
     temp_result_folders = []
     for batch in range(num_batchs):
-        batch = 1
         start_time = time()
         print(f"Processing batch {batch+1} / {num_batchs}")
 
@@ -115,8 +114,6 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ndvi_directory']))
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['lum_directory']))
         print(f"Time for batch: {round((time() - start_time)/60, 2)}min")
-        if batch == 1:
-            break
     
     # Merge results
     print("="*10 + "\nMERGING RESULTS...")
