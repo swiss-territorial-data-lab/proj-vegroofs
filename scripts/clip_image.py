@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # buffer every geometry by 50 units
     for index, row in tqdm(aoi.iterrows(), total=len(aoi), desc="Buffering geometries"):
         row = row.copy()
-        aoi.loc[index, 'geometry'] = row.geometry.buffer(50,join_style=2)
+        aoi.loc[index, 'geometry'] = row.geometry.buffer(1,join_style=2)
 
     aoi_clipped=fct_misc.clip_labels(labels_gdf=aoi, tiles_gdf=tiles, predicate_sjoin='intersects')
     aoi_clipped=aoi_clipped.reset_index(drop=True)

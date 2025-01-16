@@ -94,11 +94,10 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         start_time = time()
         print(f"Processing batch {batch+1} / {num_batchs}")
 
-        sub_AOI = AOI.iloc[BATCH_SIZE * batch: min(BATCH_SIZE * (batch + 1), len(AOI) - 1)]
+        sub_AOI = AOI.iloc[BATCH_SIZE * batch: min(BATCH_SIZE * (batch + 1), len(AOI))]
         sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpgk'), driver="GPKG")
 
         temp_cfg_logReg = deepcopy(cfg_logReg)
-        temp_cfg_logReg['dev']['roofs_file'] = 'derp'
         temp_cfg_logReg['dev']['roofs_file'] = os.path.join(temp_storage, 'sub_AOI.gpgk')
         temp_cfg_logReg_dir = os.path.join(temp_storage, "logRes.yaml")
         with open(temp_cfg_logReg_dir, 'w') as outfile:
@@ -111,7 +110,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         start_time_3 = time()
         print(f"Time for clip_image script: {round((start_time_3 - start_time_2)/60, 2)}min")
 
-        # # Computing rasters
+        # Computing rasters
         subprocess.run([interpretor_path, "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg_dir])
         start_time_4 = time()
         print(f"Time for calculate_raster script: {round((start_time_4 - start_time_3)/60, 2)}min")
@@ -123,11 +122,15 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         with open(temp_cfg_logReg_dir, 'w') as outfile:
             yaml.dump(temp_cfg_logReg, outfile)
 
-        # # Greenery
+        # Greenery
         subprocess.run([interpretor_path, "./scripts/greenery.py", "-cfg", temp_cfg_logReg_dir])
         start_time_5 = time()
         print(f"Time for greenery script: {round((start_time_5 - start_time_4)/60, 2)}min")
 
+        temp_cfg_logReg['dev']['roofs_file'] = os.path.join(temp_res_fold, '0_500_green_roofs.gpkg')
+        temp_cfg_logReg_dir = os.path.join(temp_storage, "logRes.yaml")
+        with open(temp_cfg_logReg_dir, 'w') as outfile:
+            yaml.dump(temp_cfg_logReg, outfile)
 
         # Compute stats
         subprocess.run([interpretor_path, "./scripts/roof_stats.py", "-cfg", temp_cfg_logReg_dir])

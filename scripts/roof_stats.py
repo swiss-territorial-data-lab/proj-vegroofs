@@ -171,7 +171,7 @@ if __name__ == "__main__":
 
     clipped_roofs=fct_misc.clip_labels(labels_gdf=roofs_chm, tiles_gdf=tiles, predicate_sjoin='within')
                                 
-    roofs_stats=pd.DataFrame()                                                              
+    roofs_stats=pd.DataFrame()                                                     
     calculated_stats=['min', 'max', 'mean', 'median', 'std']
     BANDS={1: 'nir', 2: 'red', 3: 'green', 4: 'blue'}
 
