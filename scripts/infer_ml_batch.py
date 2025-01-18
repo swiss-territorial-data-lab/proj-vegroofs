@@ -16,7 +16,7 @@ import functions.fct_misc as fct_misc
 from copy import deepcopy
 import platform
 
-BATCH_SIZE = 10
+BATCH_SIZE = 5000
 
 def infer_ml_batch(cfg_clipImage, cfg_logReg):
     WORKING_DIR = cfg_clipImage['clip_image']['working_directory']
@@ -64,7 +64,6 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     time_start = time()
     CHM_GPD = dg.read_file(os.path.join(WORKING_DIR, CHM), chunksize=100000)
     delayed_partitions = CHM_GPD.to_delayed()
-    results = []
     print(f"Length of AOI: {len(AOI)}")
 
     for _, delayed_partition in tqdm(enumerate(delayed_partitions), total=len(delayed_partitions)):
@@ -75,74 +74,83 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         AOI = gpd.overlay(AOI, partition_gdf,how='difference')
     print(f"Length of AOI: {len(AOI)}")
 
-    # Merging results into new roof file
-    # new_roofs = gpd.GeoDataFrame()
-    # for res in results:
-    #     AOI = res if len(AOI) == 0 else gpd.GeoDataFrame(pd.concat([AOI, res], ignore_index=True))
-    # print(f"Length of AOI: {len(AOI)}")
-    # AOI.drop_duplicates(inplace=True)
-    # print(f"Length of AOI: {len(AOI)}")
-    # new_roofs_src = os.path.join(temp_storage, "temp_roofs.gpkg")
-    # AOI.to_file(new_roofs_src, driver='GPKG')
 
     print(f'finished to process CHM in {time() - time_start}sec')
 
     num_batchs = int(len(AOI) / BATCH_SIZE - 1) + 1
     # Start batching
     temp_result_folders = []
+    invalid_geoms = []
     for batch in range(num_batchs):
+        if batch not in [1, 4, 5, 6, 7, 8, 11, 12, 13, 21, 24, 27, 35, 40, 42, 46, 52, 53, 54, 55, 59, 60, 63]:
+            continue
         start_time = time()
-        print(f"Processing batch {batch+1} / {num_batchs}")
+        print(f"Processing batch {batch} / {num_batchs - 1}")
 
+        # Select roofs to process
         sub_AOI = AOI.iloc[BATCH_SIZE * batch: min(BATCH_SIZE * (batch + 1), len(AOI))]
-        sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpgk'), driver="GPKG")
+        sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpkg'), driver="GPKG")
 
+        # Change result folder
+        batch_res_fold = cfg_logReg['dev']['results_directory'] + f"/results_batch{batch}/"
+        temp_result_folders.append(batch_res_fold)
+        # temp_cfg_logReg['dev']['results_directory'] = batch_res_fold
+        # with open(temp_cfg_logReg_dir, 'w') as outfile:
+        #     yaml.dump(temp_cfg_logReg, outfile)
+
+        # Create temp cfg files
+        #   _clipImage
+        temp_cfg_clipImage = deepcopy(cfg_clipImage)
+        temp_cfg_clipImage['clip_image']['inputs']['aoi'] = os.path.join(temp_storage, 'sub_AOI.gpkg')
+        temp_cfg_clipImage['clip_image']['outputs']['result_directory'] = batch_res_fold
+        temp_cfg_clipImage_dir = os.path.join(temp_storage, "clipImage.yaml")
+        with open(temp_cfg_clipImage_dir, 'w') as outfile:
+            yaml.dump(temp_cfg_clipImage, outfile)
+
+        #   _logReg
         temp_cfg_logReg = deepcopy(cfg_logReg)
-        temp_cfg_logReg['dev']['roofs_file'] = os.path.join(temp_storage, 'sub_AOI.gpgk')
+        temp_cfg_logReg['dev']['roofs_file'] = os.path.join(batch_res_fold, 'valid_samples.gpkg')
+        temp_cfg_logReg['dev']['results_directory'] = batch_res_fold
         temp_cfg_logReg_dir = os.path.join(temp_storage, "logRes.yaml")
         with open(temp_cfg_logReg_dir, 'w') as outfile:
             yaml.dump(temp_cfg_logReg, outfile)
-        
-        # Clipping images 
+
+
+        # Call subprocesses
+        #   _Clipping images 
         start_time_2 = time()
         print(f"Time for loading initial stuff: {round((start_time_2 - start_time)/60, 2)}min")
-        subprocess.run([interpretor_path, "./scripts/clip_image.py", '-cfg', temp_cfg_clipImage])
+        subprocess.run([interpretor_path, "./scripts/clip_image.py", '-cfg', temp_cfg_clipImage_dir])
         start_time_3 = time()
         print(f"Time for clip_image script: {round((start_time_3 - start_time_2)/60, 2)}min")
 
-        # Computing rasters
+        #   _Computing rasters
         subprocess.run([interpretor_path, "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg_dir])
         start_time_4 = time()
         print(f"Time for calculate_raster script: {round((start_time_4 - start_time_3)/60, 2)}min")
 
-        # Change result folder
-        temp_res_fold = cfg_logReg['dev']['results_directory'] + f"/results_batch{batch}/"
-        temp_result_folders.append(temp_res_fold)
-        temp_cfg_logReg['dev']['results_directory'] = temp_res_fold
-        with open(temp_cfg_logReg_dir, 'w') as outfile:
-            yaml.dump(temp_cfg_logReg, outfile)
-
-        # Greenery
+        #   _Greenery
         subprocess.run([interpretor_path, "./scripts/greenery.py", "-cfg", temp_cfg_logReg_dir])
         start_time_5 = time()
         print(f"Time for greenery script: {round((start_time_5 - start_time_4)/60, 2)}min")
 
-        temp_cfg_logReg['dev']['roofs_file'] = os.path.join(temp_res_fold, '0_500_green_roofs.gpkg')
+        temp_cfg_logReg['dev']['roofs_file'] = os.path.join(batch_res_fold, '0_500_green_roofs.gpkg')
         temp_cfg_logReg_dir = os.path.join(temp_storage, "logRes.yaml")
         with open(temp_cfg_logReg_dir, 'w') as outfile:
             yaml.dump(temp_cfg_logReg, outfile)
 
-        # Compute stats
+        #   _Compute stats
         subprocess.run([interpretor_path, "./scripts/roof_stats.py", "-cfg", temp_cfg_logReg_dir])
         start_time_6 = time()
         print(f"Time for roof_stats script: {round((start_time_6 - start_time_5)/60, 2)}min")
 
-        # Do inference
+        #   _Do inference
         subprocess.run([interpretor_path, "./scripts/infer_ml.py", "-cfg", temp_cfg_logReg_dir])
         start_time_7 = time()
         print(f"Time for inference script: {round((start_time_7 - start_time_6)/60, 2)}min")
 
-        os.remove(os.path.join(temp_storage, 'sub_AOI.gpgk'))
+        # Clean temp architecture
+        os.remove(os.path.join(temp_storage, 'sub_AOI.gpkg'))
         os.remove(temp_cfg_logReg_dir)
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ortho_directory']))
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ndvi_directory']))
