@@ -6,7 +6,7 @@ from loguru import logger
 import numpy as np
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import mapping, shape
+from shapely.geometry import mapping, shape, MultiPolygon
 from shapely.affinity import scale
 
 import rasterio
@@ -80,7 +80,6 @@ def clip_labels(labels_gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame, predi
     labels_tiles_sjoined_gdf = gpd.sjoin(labels_gdf, tiles_gdf, how='inner', predicate=predicate_sjoin)
     
     def clip_row(row, fact=fact):
-        
         old_geo = row.geometry
         scaled_tile_geo = scale(row.tile_geometry, xfact=fact, yfact=fact)
         new_geo = old_geo.intersection(scaled_tile_geo)

@@ -15,6 +15,7 @@ sys.path.insert(1, 'scripts')
 import functions.fct_misc as fct_misc
 from copy import deepcopy
 import platform
+from shapely.geometry import MultiPolygon
 
 BATCH_SIZE = 5000
 
@@ -58,21 +59,37 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         interpretor_path = "./.venv/bin/python"
 
     # Filtering for overhanging vegetation
+    def to_multipolygon(geometry):
+        if geometry.geom_type == "Polygon":
+            return MultiPolygon([geometry])
+        elif geometry.geom_type == "MultiPolygon":
+            return geometry
+        else:
+            raise ValueError("No geometries after overlay!!!")
+            return None  # Handle unexpected geometry types if needed
+
     CHM = cfg_logReg['dev']['chm_layer']
     print('Filtering for overhanging vegetation...')
     # green_roofs_egid = gpd.read_file(os.path.join(WORKING_DIR, AOI))
     time_start = time()
     CHM_GPD = dg.read_file(os.path.join(WORKING_DIR, CHM), chunksize=100000)
     delayed_partitions = CHM_GPD.to_delayed()
-    print(f"Length of AOI: {len(AOI)}")
-
+    print(f"1 - Length of AOI: {len(AOI)}")
+    AOI.to_file(os.path.join(WORKING_DIR, "test_original_aoi.gpkg"), driver="GPKG")
+    AOI = AOI.loc[AOI.geometry.is_valid]
+    print(f"2 - Length of AOI: {len(AOI)}")
+    AOI.to_file(os.path.join(WORKING_DIR, "test_valid_aoi.gpkg"), driver="GPKG")
     for _, delayed_partition in tqdm(enumerate(delayed_partitions), total=len(delayed_partitions)):
         # Compute the partition (convert to a GeoDataFrame)
         partition_gdf = delayed_partition.compute()
-        
+
         # Perform operation on the partition
-        AOI = gpd.overlay(AOI, partition_gdf,how='difference')
-    print(f"Length of AOI: {len(AOI)}")
+        AOI = gpd.overlay(AOI, partition_gdf, how='difference', keep_geom_type=True)
+    AOI['geometry'] = AOI['geometry'].apply(to_multipolygon)
+    print(f"3 - Length of AOI: {len(AOI)}")
+    AOI = AOI.loc[AOI.geometry.is_valid]
+    print(f"4 - Length of AOI: {len(AOI)}")
+    AOI.to_file(os.path.join(WORKING_DIR, "test_overlayed_aoi.gpkg"), driver="GPKG")
 
 
     print(f'finished to process CHM in {time() - time_start}sec')
@@ -80,9 +97,9 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     num_batchs = int(len(AOI) / BATCH_SIZE - 1) + 1
     # Start batching
     temp_result_folders = []
-    invalid_geoms = []
     for batch in range(num_batchs):
-        if batch not in [1, 4, 5, 6, 7, 8, 11, 12, 13, 21, 24, 27, 35, 40, 42, 46, 52, 53, 54, 55, 59, 60, 63]:
+        # if batch not in [1, 4, 5, 6, 7, 8, 11, 12, 13, 21, 24, 27, 35, 40, 42, 46, 52, 53, 54, 55, 59, 60, 63]:
+        if batch != 4:
             continue
         start_time = time()
         print(f"Processing batch {batch} / {num_batchs - 1}")
@@ -92,8 +109,10 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpkg'), driver="GPKG")
 
         # Change result folder
-        batch_res_fold = cfg_logReg['dev']['results_directory'] + f"/results_batch{batch}/"
+        batch_res_fold = os.path.join(WORKING_DIR, cfg_logReg['dev']['results_directory']) + f"/results_batch{batch}/"
         temp_result_folders.append(batch_res_fold)
+        if not os.path.exists(batch_res_fold):
+            os.mkdir(batch_res_fold)
         # temp_cfg_logReg['dev']['results_directory'] = batch_res_fold
         # with open(temp_cfg_logReg_dir, 'w') as outfile:
         #     yaml.dump(temp_cfg_logReg, outfile)
@@ -192,6 +211,10 @@ if __name__ == '__main__':
     #     df_results = df_sub_res if len(df_results) == 0 else gpd.GeoDataFrame(pd.concat([df_results, df_sub_res], ignore_index=True))
 
     # df_results.to_file(os.path.join(WORKING_DIR, "ML/results_GE", 'results.gpkg'), driver="GPKG", index=False)
+    # quit()
+    # original = gpd.read_file(r'D:\GitHubProjects\STDL_vegroof_production\test_original_aoi.gpkg')
+    # valid = gpd.read_file(r'D:\GitHubProjects\STDL_vegroof_production\test_valid_aoi.gpkg')
+    # overlayed = gpd.read_file(r'D:\GitHubProjects\STDL_vegroof_production\test_overlayed_aoi.gpkg')
     # quit()
 
 
