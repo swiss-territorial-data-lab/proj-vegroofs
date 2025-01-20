@@ -58,41 +58,41 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     else:
         interpretor_path = "./.venv/bin/python"
 
-    # Filtering for overhanging vegetation
-    def to_multipolygon(geometry):
-        if geometry.geom_type == "Polygon":
-            return MultiPolygon([geometry])
-        elif geometry.geom_type == "MultiPolygon":
-            return geometry
-        else:
-            raise ValueError("No geometries after overlay!!!")
-            return None  # Handle unexpected geometry types if needed
+    # # Filtering for overhanging vegetation
+    # def to_multipolygon(geometry):
+    #     if geometry.geom_type == "Polygon":
+    #         return MultiPolygon([geometry])
+    #     elif geometry.geom_type == "MultiPolygon":
+    #         return geometry
+    #     else:
+    #         raise ValueError("No geometries after overlay!!!")
+    #         return None  # Handle unexpected geometry types if needed
 
-    CHM = cfg_logReg['dev']['chm_layer']
-    print('Filtering for overhanging vegetation...')
-    # green_roofs_egid = gpd.read_file(os.path.join(WORKING_DIR, AOI))
-    time_start = time()
-    CHM_GPD = dg.read_file(os.path.join(WORKING_DIR, CHM), chunksize=100000)
-    delayed_partitions = CHM_GPD.to_delayed()
-    print(f"1 - Length of AOI: {len(AOI)}")
-    AOI.to_file(os.path.join(WORKING_DIR, "test_original_aoi.gpkg"), driver="GPKG")
-    AOI = AOI.loc[AOI.geometry.is_valid]
-    print(f"2 - Length of AOI: {len(AOI)}")
-    AOI.to_file(os.path.join(WORKING_DIR, "test_valid_aoi.gpkg"), driver="GPKG")
-    for _, delayed_partition in tqdm(enumerate(delayed_partitions), total=len(delayed_partitions)):
-        # Compute the partition (convert to a GeoDataFrame)
-        partition_gdf = delayed_partition.compute()
+    # CHM = cfg_logReg['dev']['chm_layer']
+    # print('Filtering for overhanging vegetation...')
+    # # green_roofs_egid = gpd.read_file(os.path.join(WORKING_DIR, AOI))
+    # time_start = time()
+    # CHM_GPD = dg.read_file(os.path.join(WORKING_DIR, CHM), chunksize=100000)
+    # delayed_partitions = CHM_GPD.to_delayed()
+    # print(f"1 - Length of AOI: {len(AOI)}")
+    # AOI.to_file(os.path.join(WORKING_DIR, "test_original_aoi.gpkg"), driver="GPKG")
+    # AOI = AOI.loc[AOI.geometry.is_valid]
+    # print(f"2 - Length of AOI: {len(AOI)}")
+    # AOI.to_file(os.path.join(WORKING_DIR, "test_valid_aoi.gpkg"), driver="GPKG")
+    # for _, delayed_partition in tqdm(enumerate(delayed_partitions), total=len(delayed_partitions)):
+    #     # Compute the partition (convert to a GeoDataFrame)
+    #     partition_gdf = delayed_partition.compute()
 
-        # Perform operation on the partition
-        AOI = gpd.overlay(AOI, partition_gdf, how='difference', keep_geom_type=True)
-    AOI['geometry'] = AOI['geometry'].apply(to_multipolygon)
-    print(f"3 - Length of AOI: {len(AOI)}")
-    AOI = AOI.loc[AOI.geometry.is_valid]
-    print(f"4 - Length of AOI: {len(AOI)}")
-    AOI.to_file(os.path.join(WORKING_DIR, "test_overlayed_aoi.gpkg"), driver="GPKG")
+    #     # Perform operation on the partition
+    #     AOI = gpd.overlay(AOI, partition_gdf, how='difference', keep_geom_type=True)
+    # AOI['geometry'] = AOI['geometry'].apply(to_multipolygon)
+    # print(f"3 - Length of AOI: {len(AOI)}")
+    # AOI = AOI.loc[AOI.geometry.is_valid]
+    # print(f"4 - Length of AOI: {len(AOI)}")
+    # AOI.to_file(os.path.join(WORKING_DIR, "test_overlayed_aoi.gpkg"), driver="GPKG")
 
 
-    print(f'finished to process CHM in {time() - time_start}sec')
+    # print(f'finished to process CHM in {time() - time_start}sec')
 
     num_batchs = int(len(AOI) / BATCH_SIZE - 1) + 1
     # Start batching
@@ -113,9 +113,6 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         temp_result_folders.append(batch_res_fold)
         if not os.path.exists(batch_res_fold):
             os.mkdir(batch_res_fold)
-        # temp_cfg_logReg['dev']['results_directory'] = batch_res_fold
-        # with open(temp_cfg_logReg_dir, 'w') as outfile:
-        #     yaml.dump(temp_cfg_logReg, outfile)
 
         # Create temp cfg files
         #   _clipImage
@@ -137,18 +134,33 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
 
         # Call subprocesses
         #   _Clipping images 
+        print("Clipping images")
         start_time_2 = time()
         print(f"Time for loading initial stuff: {round((start_time_2 - start_time)/60, 2)}min")
         subprocess.run([interpretor_path, "./scripts/clip_image.py", '-cfg', temp_cfg_clipImage_dir])
         start_time_3 = time()
         print(f"Time for clip_image script: {round((start_time_3 - start_time_2)/60, 2)}min")
 
+        # Overlay on CHM
+        print("Overlaying with CHM")
+        CHM = cfg_logReg['dev']['chm_layer']
+        CHM_GPD = dg.read_file(os.path.join(WORKING_DIR, CHM), chunksize=100000)
+        delayed_partitions = CHM_GPD.to_delayed()
+        for _, delayed_partition in tqdm(enumerate(delayed_partitions), total=len(delayed_partitions), desc="Overlaying"):
+            # Compute the partition (convert to a GeoDataFrame)
+            partition_gdf = delayed_partition.compute()
+
+            # Perform operation on the partition
+            sub_AOI = gpd.overlay(sub_AOI, partition_gdf, how='difference', keep_geom_type=True)
+
         #   _Computing rasters
+        print("Computing rasters")
         subprocess.run([interpretor_path, "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg_dir])
         start_time_4 = time()
         print(f"Time for calculate_raster script: {round((start_time_4 - start_time_3)/60, 2)}min")
 
         #   _Greenery
+        print("Computing greenery")
         subprocess.run([interpretor_path, "./scripts/greenery.py", "-cfg", temp_cfg_logReg_dir])
         start_time_5 = time()
         print(f"Time for greenery script: {round((start_time_5 - start_time_4)/60, 2)}min")
@@ -159,11 +171,13 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
             yaml.dump(temp_cfg_logReg, outfile)
 
         #   _Compute stats
+        print("Computing stats")
         subprocess.run([interpretor_path, "./scripts/roof_stats.py", "-cfg", temp_cfg_logReg_dir])
         start_time_6 = time()
         print(f"Time for roof_stats script: {round((start_time_6 - start_time_5)/60, 2)}min")
 
         #   _Do inference
+        print("Infering")
         subprocess.run([interpretor_path, "./scripts/infer_ml.py", "-cfg", temp_cfg_logReg_dir])
         start_time_7 = time()
         print(f"Time for inference script: {round((start_time_7 - start_time_6)/60, 2)}min")
