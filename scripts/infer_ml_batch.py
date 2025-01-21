@@ -99,7 +99,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     temp_result_folders = []
     for batch in range(num_batchs):
         # if batch not in [1, 4, 5, 6, 7, 8, 11, 12, 13, 21, 24, 27, 35, 40, 42, 46, 52, 53, 54, 55, 59, 60, 63]:
-        if batch != 4:
+        if batch != 1:
             continue
         start_time = time()
         print(f"Processing batch {batch} / {num_batchs - 1}")
@@ -131,7 +131,6 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         with open(temp_cfg_logReg_dir, 'w') as outfile:
             yaml.dump(temp_cfg_logReg, outfile)
 
-
         # Call subprocesses
         #   _Clipping images 
         print("Clipping images")
@@ -152,6 +151,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
 
             # Perform operation on the partition
             sub_AOI = gpd.overlay(sub_AOI, partition_gdf, how='difference', keep_geom_type=True)
+        sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpkg'), driver="GPKG")
 
         #   _Computing rasters
         print("Computing rasters")
