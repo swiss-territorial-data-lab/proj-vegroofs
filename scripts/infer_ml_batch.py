@@ -98,8 +98,12 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     # Start batching
     temp_result_folders = []
     for batch in range(num_batchs):
-        # if batch not in [1, 4, 5, 6, 7, 8, 11, 12, 13, 21, 24, 27, 35, 40, 42, 46, 52, 53, 54, 55, 59, 60, 63]:
-        if batch != 4:
+        
+        batch_res_fold = os.path.join(WORKING_DIR, cfg_logReg['dev']['results_directory']) + f"/results_batch{batch}/"
+        temp_result_folders.append(batch_res_fold)
+        continue
+        if batch not in [1, 4, 5, 6, 7, 8, 11, 12, 13, 21, 24, 27, 35, 40, 42, 46, 52, 53, 54, 55, 59, 60, 63]:
+        # if batch != 4:
             continue
         start_time = time()
         print(f"Processing batch {batch} / {num_batchs - 1}")
@@ -141,6 +145,12 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         start_time_3 = time()
         print(f"Time for clip_image script: {round((start_time_3 - start_time_2)/60, 2)}min")
 
+        #   _Computing rasters
+        print("Computing rasters")
+        subprocess.run([interpretor_path, "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg_dir])
+        start_time_4 = time()
+        print(f"Time for calculate_raster script: {round((start_time_4 - start_time_3)/60, 2)}min")
+
         # Overlay on CHM
         print("Overlaying with CHM")
         CHM = cfg_logReg['dev']['chm_layer']
@@ -152,12 +162,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
 
             # Perform operation on the partition
             sub_AOI = gpd.overlay(sub_AOI, partition_gdf, how='difference', keep_geom_type=True)
-
-        #   _Computing rasters
-        print("Computing rasters")
-        subprocess.run([interpretor_path, "./scripts/calculate_raster.py", "-cfg", temp_cfg_logReg_dir])
-        start_time_4 = time()
-        print(f"Time for calculate_raster script: {round((start_time_4 - start_time_3)/60, 2)}min")
+        sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpkg'), driver="GPKG")
 
         #   _Greenery
         print("Computing greenery")
@@ -189,11 +194,11 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ndvi_directory']))
         shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['lum_directory']))
         print(f"Time for batch: {round((time() - start_time)/60, 2)}min")
-    
+    print("List of batchs to merge: ", temp_result_folders)
     # Merge results
     print("="*10 + "\nMERGING RESULTS...")
     df_results = gpd.GeoDataFrame()
-    for res_dir in temp_result_folders:
+    for _, res_dir in tqdm(enumerate(temp_result_folders), total=len(temp_result_folders), desc='Merging'):
         df_sub_res = gpd.read_file(os.path.join(WORKING_DIR, res_dir, 'inf_' + CLS_ML + '_' + MODEL_ML + '.gpkg'))
         df_results = df_sub_res if len(df_results) == 0 else gpd.GeoDataFrame(pd.concat([df_results, df_sub_res], ignore_index=True))
 
