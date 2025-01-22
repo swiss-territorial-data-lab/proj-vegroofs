@@ -135,7 +135,6 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         with open(temp_cfg_logReg_dir, 'w') as outfile:
             yaml.dump(temp_cfg_logReg, outfile)
 
-
         # Call subprocesses
         #   _Clipping images 
         print("Clipping images")
