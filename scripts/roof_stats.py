@@ -116,6 +116,7 @@ if __name__ == "__main__":
     EGID_TRAIN_TEST=cfg['egid_train_test']
 
     EPSG=cfg['epsg']
+    DO_OVERLAY=cfg['do_overlay']
 
     os.chdir(WORKING_DIR)
 
@@ -141,7 +142,7 @@ if __name__ == "__main__":
         roofs.rename(columns={GREEN_CLS:'cls'}, inplace=True)
         roofs.rename(columns={GREEN_TAG:'green_tag'}, inplace=True)
 
-    if not 'green_roofs' in ROOFS_POLYGONS:
+    if not 'green_roofs' in ROOFS_POLYGONS and DO_OVERLAY:
         roofs['geometry'] = roofs.buffer(-1)
         logger.info('Filtering for overhanging vegetation...')
         roofs = roofs[roofs.geometry.is_empty==False]

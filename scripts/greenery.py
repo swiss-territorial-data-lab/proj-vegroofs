@@ -10,6 +10,7 @@ from tqdm_joblib import tqdm_joblib
 
 import pandas as pd
 import geopandas as gpd
+from time import time
 import fiona
 import rasterio
 from rasterio.features import shapes
@@ -86,6 +87,7 @@ if __name__ == "__main__":
     TH_NDVI=cfg['th_ndvi']
     TH_LUM=cfg['th_lum']
     EPSG=cfg['epsg']
+    DO_OVERLAY = cfg['do_overlay']
 
     os.chdir(WORKING_DIR)
 
@@ -137,12 +139,13 @@ if __name__ == "__main__":
     green_roofs_egid['EGID']=green_roofs_egid.index
     green_roofs_egid.index.names = ['Index']
 
-    logger.info('Filtering for overhanging vegetation...')
+    if DO_OVERLAY:
+        logger.info('Filtering for overhanging vegetation...')
+        CHM = os.path.join(WORKING_DIR, CHM_LAYER)
+        CHM_GPD=gpd.read_file(CHM)
+        CHM_GPD['geometry'] = CHM_GPD.buffer(1)
+        green_roofs_egid=gpd.overlay(green_roofs_egid, CHM_GPD, how='difference')
 
-    CHM = os.path.join(WORKING_DIR, CHM_LAYER)
-    CHM_GPD=gpd.read_file(CHM)
-    CHM_GPD['geometry'] = CHM_GPD.buffer(1)
-    green_roofs_egid=gpd.overlay(green_roofs_egid, CHM_GPD, how='difference')
     green_roofs_egid['area_green'] = green_roofs_egid.area
 
     

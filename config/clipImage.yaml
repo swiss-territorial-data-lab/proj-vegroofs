@@ -1,21 +1,10 @@
-# clip_image:
-#   working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data_test
-#   inputs:
-#     ortho_directory: 01_initial/images/rs_tlm/tiles/
-#     aoi: 01_initial/aoi/STDL_ZH_AOI.shp
-#     epsg: 'epsg:2056'
-#     predicate_sjoin: 'intersects'
-#   outputs: 
-#     clip_ortho_directory: 02_intermediate/images/rs_tlm/tiles
-#     extent_ortho_directory: 01_initial/images/rs_tlm/extent
-
 clip_image:
-  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
+  working_directory: D:/GitHubProjects/STDL_vegroof_production
   inputs:
-    ortho_directory: 01_initial/images/infer_moitie/tiles/
-    aoi: 01_initial/images/infer_moitie/extent/extent.shp
+    ortho_directory: sources/rasters/ZH
+    aoi: sources/Footprint/ZH/00-AVBodenbedGeb_updated.gpkg
     epsg: 'epsg:2056'
   outputs: 
-    clip_ortho_directory: 02_intermediate/images/infer_moitie/tiles
-    extent_ortho_directory: 01_initial/images/infer_moitie/extent
-
+    result_directory: ML/results
+    clip_ortho_directory: ML/results/infer_moitie/tiles
+    extent_ortho_directory: ML/results/infer_moitie/extent
