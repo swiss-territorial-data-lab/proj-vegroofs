@@ -22,6 +22,7 @@ dev:
   model_ml: 'LR' # 'LR' 'RF'
   trained_model_dir: ML/models
   epsg: 'epsg:2056'
+  do_overlay: False
 
 
 
