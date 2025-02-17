@@ -1,6 +1,6 @@
 import os
 import sys
-import numpy as np
+
 import pandas as pd
 import geopandas as gpd
 import dask_geopandas as dg
@@ -10,27 +10,23 @@ from tqdm import tqdm
 from time import time
 import subprocess
 import tempfile
-sys.path.insert(1, 'scripts')
-import functions.fct_misc as fct_misc
 from copy import deepcopy
 import platform
+
+sys.path.insert(1, 'scripts')
+import functions.fct_misc as fct_misc
+
 
 BATCH_SIZE = 200
 
 def infer_ml_batch(cfg_clipImage, cfg_logReg):
     WORKING_DIR = cfg_clipImage['clip_image']['working_directory']
-    CLS_ML = cfg_logReg['dev']['cls_ml']
-    MODEL_ML = cfg_logReg['dev']['model_ml']
-    AOI = gpd.read_file(os.path.join(WORKING_DIR,cfg_clipImage['clip_image']['inputs']['aoi']))
+    CLS_ML = cfg_logReg['prod']['cls_ml']
+    MODEL_ML = cfg_logReg['prod']['model_ml']
+    ROOFS = gpd.read_file(os.path.join(WORKING_DIR,cfg_clipImage['clip_image']['inputs']['aoi']))
 
     # Create temp folder
     temp_storage = tempfile.mkdtemp()
-
-    # Create temp config files       
-    cfg_clipImage['clip_image']['inputs']['aoi'] = os.path.join(temp_storage, 'sub_AOI.gpgk')
-    temp_cfg_clipImage = os.path.join(temp_storage, "clipImage.yaml")
-    with open(temp_cfg_clipImage, 'w') as outfile:
-        yaml.dump(cfg_clipImage, outfile)
 
     # Compute extents
     OUTPUTS=cfg_clipImage['clip_image']['outputs']
@@ -55,7 +51,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     else:
         interpretor_path = "./.venv/bin/python"
 
-    num_batchs = int(len(AOI) / BATCH_SIZE - 1) + 1
+    num_batchs = int(len(ROOFS) / BATCH_SIZE - 1) + 1
 
     # Start batching
     temp_result_folders = []
@@ -65,19 +61,19 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         start_time = time()
 
         # Select roofs to process
-        sub_AOI = AOI.iloc[BATCH_SIZE * batch: min(BATCH_SIZE * (batch + 1), len(AOI))]
-        sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpkg'), driver="GPKG")
+        roofs_subset = ROOFS.iloc[BATCH_SIZE * batch: min(BATCH_SIZE * (batch + 1), len(ROOFS))]
+        roofs_subset.to_file(os.path.join(temp_storage, 'roofs_subset.gpkg'), driver="GPKG")
 
         # Change result folder
-        batch_res_fold = os.path.join(WORKING_DIR, cfg_logReg['dev']['results_directory']) + f"/results_batch{batch}/"
+        batch_res_fold = os.path.join(WORKING_DIR, cfg_logReg['prod']['results_directory']) + f"/results_batch{batch}/"
         temp_result_folders.append(batch_res_fold)
         if not os.path.exists(batch_res_fold):
-            os.mkdir(batch_res_fold)
+            fct_misc.ensure_dir_exists(batch_res_fold)
 
         # Create temp cfg files
         #   _clipImage
         temp_cfg_clipImage = deepcopy(cfg_clipImage)
-        temp_cfg_clipImage['clip_image']['inputs']['aoi'] = os.path.join(temp_storage, 'sub_AOI.gpkg')
+        temp_cfg_clipImage['clip_image']['inputs']['aoi'] = os.path.join(temp_storage, 'roofs_subset.gpkg')
         temp_cfg_clipImage['clip_image']['outputs']['result_directory'] = batch_res_fold
         temp_cfg_clipImage_dir = os.path.join(temp_storage, "clipImage.yaml")
         with open(temp_cfg_clipImage_dir, 'w') as outfile:
@@ -85,9 +81,9 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
 
         #   _logReg
         temp_cfg_logReg = deepcopy(cfg_logReg)
-        temp_cfg_logReg['dev']['roofs_file'] = os.path.join(batch_res_fold, 'valid_samples.gpkg')
-        temp_cfg_logReg['dev']['results_directory'] = batch_res_fold
-        temp_cfg_logReg['dev']['do_overlay'] = False
+        temp_cfg_logReg['prod']['roofs_file'] = os.path.join(batch_res_fold, 'valid_samples.gpkg')
+        temp_cfg_logReg['prod']['results_directory'] = batch_res_fold
+        temp_cfg_logReg['prod']['do_overlay'] = False
         temp_cfg_logReg_dir = os.path.join(temp_storage, "logRes.yaml")
         with open(temp_cfg_logReg_dir, 'w') as outfile:
             yaml.dump(temp_cfg_logReg, outfile)
@@ -107,7 +103,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
 
         # Overlay on CHM
         print("Overlaying with CHM")
-        CHM = cfg_logReg['dev']['chm_layer']
+        CHM = cfg_logReg['prod']['chm_layer']
         CHM_GPD = dg.read_file(os.path.join(WORKING_DIR, CHM), chunksize=100000)
         delayed_partitions = CHM_GPD.to_delayed()
         for _, delayed_partition in tqdm(enumerate(delayed_partitions), total=len(delayed_partitions), desc="Overlaying"):
@@ -115,8 +111,8 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
             partition_gdf = delayed_partition.compute()
 
             # Perform operation on the partition
-            sub_AOI = gpd.overlay(sub_AOI, partition_gdf, how='difference', keep_geom_type=True)
-        sub_AOI.to_file(os.path.join(temp_storage, 'sub_AOI.gpkg'), driver="GPKG")
+            roofs_subset = gpd.overlay(roofs_subset, partition_gdf, how='difference', keep_geom_type=True)
+        roofs_subset.to_file(os.path.join(temp_storage, 'roofs_subset.gpkg'), driver="GPKG")
 
         #   _Greenery
         print("Computing greenery")
@@ -125,7 +121,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         time_2 = time()
         print(f"Time for greenery script: {round((time_2 - time_1)/60, 2)}min")
 
-        temp_cfg_logReg['dev']['roofs_file'] = os.path.join(batch_res_fold, '0_500_green_roofs.gpkg')
+        temp_cfg_logReg['prod']['roofs_file'] = os.path.join(batch_res_fold, '0_500_green_roofs.gpkg')
         temp_cfg_logReg_dir = os.path.join(temp_storage, "logRes.yaml")
         with open(temp_cfg_logReg_dir, 'w') as outfile:
             yaml.dump(temp_cfg_logReg, outfile)
@@ -143,11 +139,11 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         print(f"Time for inference script: {round((time_2 - time_1)/60, 2)}min")
 
         # Clean temp architecture
-        os.remove(os.path.join(temp_storage, 'sub_AOI.gpkg'))
+        os.remove(os.path.join(temp_storage, 'roofs_subset.gpkg'))
         os.remove(temp_cfg_logReg_dir)
-        shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ortho_directory']))
-        shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['ndvi_directory']))
-        shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['dev']['lum_directory']))
+        shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['prod']['ortho_directory']))
+        shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['prod']['ndvi_directory']))
+        shutil.rmtree(os.path.join(WORKING_DIR, cfg_logReg['prod']['lum_directory']))
 
         # Print time for batch
         time_elapsed = time() - start_time
@@ -164,7 +160,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
         df_sub_res = gpd.read_file(os.path.join(WORKING_DIR, res_dir, 'inf_' + CLS_ML + '_' + MODEL_ML + '.gpkg'))
         df_results = df_sub_res if len(df_results) == 0 else gpd.GeoDataFrame(pd.concat([df_results, df_sub_res], ignore_index=True))
 
-    df_results.to_file(os.path.join(WORKING_DIR, cfg_logReg['dev']['results_directory'], 'results.gpkg'), driver="GPKG")
+    df_results.to_file(os.path.join(WORKING_DIR, cfg_logReg['prod']['results_directory'], 'results.gpkg'), driver="GPKG")
     shutil.rmtree(temp_storage)
     print("MERGING COMPLETED!")
 

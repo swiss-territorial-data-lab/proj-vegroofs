@@ -5,6 +5,6 @@ clip_image:
     aoi: 01_initial/aoi/aoi.shp                         # area of interest to cut the images with
     epsg: 'epsg:2056'                                   # EPSG of the project
   outputs: 
+    result_directory: 02_intermediate/results
     clip_ortho_directory: 02_intermediate/images/tiles  # directory for the clipped images in ouptut
     extent_ortho_directory: 01_initial/images/extent    # directory for the computed extent of the original images
-
