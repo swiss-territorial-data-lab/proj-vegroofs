@@ -49,7 +49,7 @@ def infer_ml_batch(cfg_clipImage, cfg_logReg):
     if platform.system() == 'Windows':
         interpretor_path = "./.venv/Scripts/python"
     else:
-        interpretor_path = "./.venv/bin/python"
+        interpretor_path = "env_veg/bin/python"
 
     num_batchs = int(len(ROOFS) / BATCH_SIZE - 1) + 1
 

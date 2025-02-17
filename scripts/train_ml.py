@@ -214,7 +214,7 @@ if __name__ == "__main__":
 
     # load input parameters
     with open(args.config_file) as fp:
-        cfg = yaml.load(fp, Loader=yaml.FullLoader)['dev']
+        cfg = yaml.load(fp, Loader=yaml.FullLoader)['prod']
 
 
     logger.info('Defining constants...')
