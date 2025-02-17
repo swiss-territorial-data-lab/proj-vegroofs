@@ -108,7 +108,7 @@ if __name__ == "__main__":
     tile_list=[]
     tile_list.extend(tile_list_ortho)
 
-    for tile in tqdm(tile_list, 'Processing tiles'):
+    for _, tile in tqdm(enumerate(tile_list), total=len(tile_list), desc='Processing tiles'):
         tile = tile.replace("\\","/") #handle windows path
         ndvi_tile_path=os.path.join(NDVI_DIR, tile.split('/')[-1].replace('.tif', '_NDVI.tif'))
         _ = calculate_ndvi(tile, path=ndvi_tile_path)

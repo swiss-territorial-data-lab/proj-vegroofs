@@ -6,7 +6,7 @@ from loguru import logger
 import numpy as np
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import mapping, shape
+from shapely.geometry import mapping, shape, MultiPolygon
 from shapely.affinity import scale
 
 import rasterio
@@ -16,6 +16,8 @@ from rasterio.features import dataset_features
 
 import csv
 import warnings
+
+from tqdm import tqdm
 warnings.filterwarnings('ignore')
 
 def format_logger(logger):
@@ -78,7 +80,6 @@ def clip_labels(labels_gdf: gpd.GeoDataFrame, tiles_gdf: gpd.GeoDataFrame, predi
     labels_tiles_sjoined_gdf = gpd.sjoin(labels_gdf, tiles_gdf, how='inner', predicate=predicate_sjoin)
     
     def clip_row(row, fact=fact):
-        
         old_geo = row.geometry
         scaled_tile_geo = scale(row.tile_geometry, xfact=fact, yfact=fact)
         new_geo = old_geo.intersection(scaled_tile_geo)
@@ -152,10 +153,10 @@ def generate_extent(PATH_IN: str, PATH_OUT: str, EPSG: str = 'epsg:2056'):
                 list_name.append(name)
     
     ext_merge=gpd.GeoDataFrame()
-    for _name in list_name:
+    for _, _name in tqdm(enumerate(list_name), total=len(list_name), desc="Computing extent"):
 
         _tif = os.path.join(PATH_IN, _name)
-        logger.info(f'Computing extent of {str(_name)} ...')
+        # logger.info(f'Computing extent of {str(_name)} ...')
 
         with rasterio.open(_tif) as src:
             gdf = gpd.GeoDataFrame.from_features(
@@ -193,7 +194,7 @@ def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = '
 
     with rasterio.open(os.path.join(TIFF_FOLDER, GPD.iloc[-1]['NAME']+'.tif')) as src:
 
-        logger.info('Clipping ' + GPD.iloc[-1]['NAME'] + '.tif...')
+        # logger.info('Clipping ' + GPD.iloc[-1]['NAME'] + '.tif...')
         
         out_image, out_transform = rasterio.mask.mask(
             src,
@@ -225,4 +226,4 @@ def clip_im(TIFF_FOLDER: str, GPD: str, OUT_FOLDER: str, idx: int, EPSG: str = '
         with rasterio.open(out_path, 'w', **out_meta) as dst:
             dst.write(out_image)
         
-        logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')
+        # logger.info('Clipped image ' + GPD.iloc[-1]['NAME']+'_'+str(idx) + ' written...')

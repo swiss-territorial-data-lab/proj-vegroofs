@@ -3,25 +3,23 @@ hydra:
     dir: 02_intermediate/th/${now:%Y-%m-%d}/${now:%H-%M-%S}
 
 dev:
-  working_directory: C:/Users/cmarmy/Documents/STDL/proj-vegroofs/data
-  ortho_directory: 02_intermediate/images/infer_moitie/tiles
-  tile_delimitation: 02_intermediate/images/infer_moitie/extent/
-  ndvi_directory: 02_intermediate/images/infer_moitie/ndvi
-  lum_directory: 02_intermediate/images/infer_moitie/lum
-  roofs_file: 02_intermediate/th/2024-08-15/09-12-47/0_500_green_roofs.shp # 02_intermediate/gt/inf_roofs.gpkg # 
+  working_directory: D:/GitHubProjects/STDL_vegroof_production
+  ortho_directory: ML/results/infer_moitie/tiles
+  tile_delimitation: ML/results/infer_moitie/tiles/extent
+  ndvi_directory: ML/results/infer_moitie/ndvi
+  lum_directory: ML/results/infer_moitie/lum
+  roofs_file: sources/Footprint/ZH/00-AVBodenbedGeb_updated.gpkg
   roofs_layer: 
   gt: False
   green_tag: 'veg_new_3'
   green_cls: 'class_3'
-  chm_layer: 02_intermediate/autres/CHM_AOI_inf.gpkg
-  results_directory: 03_results/infer_moitie/
+  chm_layer: sources/CHM/ZH/chm_ZH_total.shp
+  results_directory: ML/results
   egid_train_test: egid_train_test_gt.csv
   th_ndvi: 0 # no thresholding -1
   th_lum: 500 # no thresholding 765 or 210000
   cls_ml: 'binary' # 'binary' 'multi' 'multi_aggreg'
   model_ml: 'LR' # 'LR' 'RF'
-  trained_model_dir: 03_results/scratch_gt/
+  trained_model_dir: ML/models
   epsg: 'epsg:2056'
-
-
-
+  do_overlay: False

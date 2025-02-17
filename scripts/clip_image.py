@@ -2,7 +2,7 @@ import os, sys
 import yaml
 import argparse
 from loguru import logger
-import tqdm as tqdm
+from tqdm import tqdm
 
 import geopandas as gpd
 
@@ -43,28 +43,36 @@ if __name__ == "__main__":
     OUTPUTS=cfg['outputs']
     OUTPUT_DIR=OUTPUTS['clip_ortho_directory']
     TILE_DELIMITATION=OUTPUTS['extent_ortho_directory']
+    RESULT_DIR = OUTPUTS['result_directory']
 
     os.chdir(WORKING_DIR)
     fct_misc.ensure_dir_exists(OUTPUT_DIR)
-
-    fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
+    if not os.path.isfile(os.path.join(TILE_DELIMITATION,'extent.shp')):
+        fct_misc.generate_extent(ORTHO_DIR, TILE_DELIMITATION, EPSG)
     tiles=gpd.read_file(TILE_DELIMITATION)
 
     logger.info('Reading AOI geometries...')
 
     aoi = gpd.read_file(AOI)
+    # filter out invalid geometries
+    invalid_samples = aoi.loc[~aoi.geometry.is_valid]
+    aoi = aoi.loc[aoi.geometry.is_valid]
+    invalid_samples.to_file(os.path.join(RESULT_DIR, 'invalid_samples.gpkg'), driver='GPKG')
+    aoi.to_file(os.path.join(RESULT_DIR, 'valid_samples.gpkg'), driver='GPKG')
+    
     # keep only the geometry column
     aoi = aoi.filter(['geometry'])
     # buffer every geometry by 50 units
-    for index, row in aoi.iterrows():
+    for index, row in tqdm(aoi.iterrows(), total=len(aoi), desc="Buffering geometries"):
         row = row.copy()
-        aoi.loc[index, 'geometry'] = row.geometry.buffer(50,join_style=2)
+        aoi.loc[index, 'geometry'] = row.geometry.buffer(1,join_style=2)
+
 
     aoi_clipped=fct_misc.clip_labels(labels_gdf=aoi, tiles_gdf=tiles, predicate_sjoin='intersects')
     aoi_clipped=aoi_clipped.reset_index(drop=True)
 
     i=1
-    for idx,row in aoi_clipped.iterrows(): 
+    for idx,row in tqdm(aoi_clipped.iterrows(), total=len(aoi_clipped), desc="Clipping rasters"): 
         fct_misc.clip_im(ORTHO_DIR, aoi_clipped.iloc[[idx]], OUTPUT_DIR, i, EPSG)
         i=i+1
     logger.success(f'Successfully clipped {i-1} images.')
