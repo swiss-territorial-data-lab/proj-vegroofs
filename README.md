@@ -51,6 +51,8 @@ Scripts are run in combination with hard-coded configuration files in the follow
 5. `train_ml.py`
 6. `infere_ml.py`
 
+Alternatively, the entire pipeline can be run by batch of roofs with the script `infer_ml_batch.py`. Within this pipeline, the computation are made roof-wise and not region-wise. 
+
 ### Input data 
 
 #### Ground truth 
