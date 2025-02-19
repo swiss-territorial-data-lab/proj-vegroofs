@@ -1,6 +1,6 @@
 # Green roofs: automatic detection of roof vegetation <!--, vegetation type and covered surface-->
 
-This project provides a suite of Python scripts allowing the end-user to use machine learning to detect green roofs on land survey building footprint based on orthophotos. 
+This project provides a suite of Python scripts allowing the end-user to use machine learning to detect green roofs on land survey building footprint based on orthophotos, whereas the [proj-vegroofs-DL](https://github.com/swiss-territorial-data-lab/proj-vegroofs-DL) repositery documents an alternative approach based on deep learning techniques.
 
 ## Hardware requirements
 
